@@ -32,7 +32,7 @@ export function AddressAutocomplete({
   const [isLoading, setIsLoading] = useState(false)
   const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(preSelectedLocation || null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // Update selected suggestion when preSelectedLocation changes
   useEffect(() => {

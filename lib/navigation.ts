@@ -12,17 +12,15 @@ export interface NavItem {
 
 export const navigationItems: NavItem[] = [
   {
-    title: "NHVR Logbook Checker",
-    href: "/nhvr-logbook-checker",
+    title: "Logbook Calculator",
+    href: "/logbook-calculator",
     description: "Check if you need a work diary for your journey",
   },
-  // Add more tools here as they're created
-  // {
-  //   title: "Route Planner",
-  //   href: "/route-planner",
-  //   description: "Plan your truck routes",
-  //   comingSoon: true,
-  // },
+  {
+    title: "Pricing",
+    href: "/pricing",
+    description: "View our subscription plans and features",
+  },
 ]
 
 // Helper to get the current active route

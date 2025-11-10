@@ -2,6 +2,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { navigationItems } from "@/lib/navigation"
 import { Navigation } from "./header-navigation"
+import { AuthButton } from "./auth-button"
 
 export function Header() {
   return (
@@ -18,8 +19,10 @@ export function Header() {
             />
           </Link>
           
-          {/* Navigation - will show when we have multiple tools */}
-          {navigationItems.length > 1 && <Navigation />}
+          <div className="flex items-center gap-4">
+            <Navigation />
+            <AuthButton />
+          </div>
         </div>
       </div>
     </header>

@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
 import Script from "next/script"
 import { Suspense } from "react"
+import { getSubscriptionStatus } from "@/lib/stripe/actions"
+import { getDepot } from "@/lib/depot/actions"
 import LogbookChecker from "../logbook-checker"
 import { ResultSkeleton } from "@/components/logbook/result-skeleton"
 import { generatePageMetadata } from "@/lib/seo/config"
@@ -35,7 +37,13 @@ export const metadata: Metadata = generatePageMetadata({
   ],
 })
 
-export default function NHVRLogbookCheckerPage() {
+export default async function NHVRLogbookCheckerPage() {
+  // Fetch subscription status at page level (server component)
+  const { isPro } = await getSubscriptionStatus()
+  
+  // Fetch depot for Pro users
+  const depotResult = isPro ? await getDepot() : { data: null, error: null }
+
   // Generate structured data for this specific tool
   const structuredData = combineSchemas(
     getNHVRCalculatorSchema(),
@@ -98,7 +106,7 @@ export default function NHVRLogbookCheckerPage() {
           </div>
         </div>
       }>
-        <LogbookChecker />
+        <LogbookChecker isPro={isPro} initialDepot={depotResult.data} />
       </Suspense>
     </>
   )

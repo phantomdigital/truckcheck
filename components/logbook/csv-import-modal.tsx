@@ -13,12 +13,13 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Label } from "@/components/ui/label"
 import { Upload, FileText, AlertCircle, CheckCircle2 } from "lucide-react"
+import { validateCSVImport } from "@/lib/stripe/actions"
 import type { GeocodeResult, Stop } from "@/lib/logbook/types"
 import { geocodeAddress } from "@/lib/logbook/utils"
-
 interface CSVImportModalProps {
   onImport: (baseLocation: GeocodeResult, stops: Stop[]) => void
   disabled?: boolean
+  isPro?: boolean
 }
 
 interface ColumnMapping {
@@ -26,7 +27,7 @@ interface ColumnMapping {
   stops: number[]
 }
 
-export function CSVImportModal({ onImport, disabled }: CSVImportModalProps) {
+export function CSVImportModal({ onImport, disabled, isPro = false }: CSVImportModalProps) {
   const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [headers, setHeaders] = useState<string[]>([])
@@ -250,6 +251,13 @@ export function CSVImportModal({ onImport, disabled }: CSVImportModalProps) {
   }
 
   const handleImport = async () => {
+    // SECURITY: Server-side validation before allowing CSV import
+    const validation = await validateCSVImport()
+    if (!validation.success) {
+      setError(validation.error || 'Pro subscription required to import CSV')
+      return
+    }
+    
     if (rows.length === 0) {
       setError("No data to import")
       return
@@ -344,11 +352,12 @@ export function CSVImportModal({ onImport, disabled }: CSVImportModalProps) {
           type="button"
           variant="outline"
           size="sm"
-          disabled={disabled}
+          disabled={disabled || !isPro}
           className="gap-2"
+          title={!isPro ? "Pro feature - Upgrade to unlock" : undefined}
         >
           <Upload className="h-4 w-4" />
-          Import CSV
+          {!isPro ? "Import CSV (Pro)" : "Import CSV"}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">

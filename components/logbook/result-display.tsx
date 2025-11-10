@@ -6,21 +6,23 @@ import { Button } from "@/components/ui/button"
 import { DistanceMap } from "@/components/distance-map"
 import { Share2, Route, Navigation, BookCheck, BookX, CircleCheck, CircleX, AlertTriangle } from "lucide-react"
 import { ExportResult } from "@/components/logbook/export-result"
+import { ResponsiveAd } from "@/components/adsense"
 import type { CalculationResult } from "@/lib/logbook/types"
 
 interface ResultDisplayProps {
   result: CalculationResult
   onShare: () => void
+  isPro?: boolean
 }
 
-export function ResultDisplay({ result, onShare }: ResultDisplayProps) {
+export function ResultDisplay({ result, onShare, isPro = false }: ResultDisplayProps) {
   return (
     <Card>
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-semibold tracking-tight">Result</CardTitle>
           <div className="flex gap-2">
-            <ExportResult result={result} />
+            <ExportResult result={result} isPro={isPro} />
             <Button
               variant="outline"
               size="sm"
@@ -163,6 +165,9 @@ export function ResultDisplay({ result, onShare }: ResultDisplayProps) {
             return null
           })()}
 
+          {/* Ad placement before map - only show for free users */}
+          {!isPro && <ResponsiveAd adSlot="YOUR_AD_SLOT_MAP" />}
+
           {/* Route Visualisation - Map */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -190,6 +195,7 @@ export function ResultDisplay({ result, onShare }: ResultDisplayProps) {
                 stops={result.stops}
                 routeGeometry={result.routeGeometry}
                 maxDistanceFromBase={result.maxDistanceFromBase}
+                isPro={isPro}
               />
             </div>
           </div>

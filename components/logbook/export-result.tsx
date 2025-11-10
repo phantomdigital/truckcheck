@@ -4,13 +4,17 @@ import { useRef, useState } from "react"
 import { useReactToPrint } from "react-to-print"
 import html2canvas from "html2canvas"
 import { Button } from "@/components/ui/button"
-import { Printer } from "lucide-react"
+import { Printer, Lock, Download } from "lucide-react"
 import { PrintResult } from "@/components/logbook/print-result"
+import { FeatureGate } from "@/components/feature-gate"
+import { validatePDFExport, validateCSVExport } from "@/lib/stripe/actions"
+import { toast } from "sonner"
 import type { CalculationResult } from "@/lib/logbook/types"
 import type mapboxgl from "mapbox-gl"
 
 interface ExportResultProps {
   result: CalculationResult
+  isPro?: boolean
 }
 
 // Type definitions for extended map container
@@ -22,10 +26,54 @@ interface MapContainerElement extends HTMLElement {
   __mapInstance?: ExtendedMap
 }
 
-export function ExportResult({ result }: ExportResultProps) {
+export function ExportResult({ result, isPro = false }: ExportResultProps) {
   const printRef = useRef<HTMLDivElement>(null)
   const [mapImageUrl, setMapImageUrl] = useState<string>()
   const [isCapturing, setIsCapturing] = useState(false)
+
+  const handleCSVExport = async () => {
+    // SECURITY: Server-side validation before allowing CSV export
+    const validation = await validateCSVExport()
+    if (!validation.success) {
+      toast.error(validation.error || 'Pro subscription required to export CSV')
+      return
+    }
+
+    try {
+      // Create CSV content
+      const csvData = [
+        ['Field', 'Value'],
+        ['Base Location', result.baseLocation.placeName],
+        ['Stops', result.stops.map(s => s.address).join(' → ')],
+        ['Distance (km)', result.distance.toString()],
+        ['Driving Distance (km)', result.drivingDistance?.toString() || 'N/A'],
+        ['Max Distance from Base (km)', result.maxDistanceFromBase?.toString() || 'N/A'],
+        ['Logbook Required', result.logbookRequired ? 'Yes' : 'No'],
+        ['Calculated At', new Date().toISOString()],
+      ]
+
+      // Convert to CSV string
+      const csvContent = csvData
+        .map(row => row.map(field => `"${field}"`).join(','))
+        .join('\n')
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `logbook-calculation-${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      toast.success('CSV exported successfully')
+    } catch (error) {
+      console.error('Error exporting CSV:', error)
+      toast.error('Failed to export CSV')
+    }
+  }
   
   const captureMap = async (): Promise<string | null> => {
     // Find the entire map container (not just canvas, to include markers)
@@ -48,7 +96,7 @@ export function ExportResult({ result }: ExportResultProps) {
       })
       
       if (mapInstance?.resetToOriginalBounds) {
-        console.log('Resetting map to original bounds...')
+          console.log('Resetting map to original bounds...')
         
         // Reset map to original position first - this will wait for map to finish moving
         await mapInstance.resetToOriginalBounds()
@@ -191,15 +239,23 @@ export function ExportResult({ result }: ExportResultProps) {
   }
 
   const handlePrintClick = async () => {
+    // SECURITY: Server-side validation before allowing PDF export
+    const validation = await validatePDFExport()
+    if (!validation.success) {
+      console.error('PDF export not allowed:', validation.error)
+      alert(validation.error || 'Pro subscription required to export PDF')
+      return
+    }
+    
     setIsCapturing(true)
     
     try {
       // Reset map and capture it first
-      const mapUrl = await captureMap()
-      if (mapUrl) {
-        setMapImageUrl(mapUrl)
-      }
-      
+    const mapUrl = await captureMap()
+    if (mapUrl) {
+      setMapImageUrl(mapUrl)
+    }
+    
       // Small delay to ensure state is updated before opening print dialog
       await new Promise(resolve => setTimeout(resolve, 100))
       
@@ -221,6 +277,33 @@ export function ExportResult({ result }: ExportResultProps) {
     },
   })
 
+  if (!isPro) {
+    return (
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          disabled
+          title="Pro feature - Upgrade to unlock"
+        >
+          <Lock className="h-4 w-4" />
+          Print/PDF (Pro)
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled
+          className="gap-2"
+          title="Pro feature - Upgrade to unlock"
+        >
+          <Lock className="h-4 w-4" />
+          Export CSV (Pro)
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <>
       {/* Hidden print component */}
@@ -228,17 +311,44 @@ export function ExportResult({ result }: ExportResultProps) {
         <PrintResult ref={printRef} result={result} mapImageUrl={mapImageUrl} />
       </div>
 
-      {/* Print/PDF button */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handlePrintClick}
-        disabled={isCapturing}
-        className="gap-2"
-      >
-        <Printer className="h-4 w-4" />
-        {isCapturing ? "Preparing..." : "Print/PDF"}
-      </Button>
+      {/* Export buttons */}
+      <div className="flex gap-2">
+        {/* Print/PDF button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handlePrintClick}
+          disabled={isCapturing}
+          className="gap-2"
+        >
+          <Printer className="h-4 w-4" />
+          {isCapturing ? "Preparing..." : "Print/PDF"}
+        </Button>
+
+        {/* CSV Export button */}
+        {isPro ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCSVExport}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            className="gap-2"
+            title="Pro feature - Upgrade to unlock"
+          >
+            <Lock className="h-4 w-4" />
+            Export CSV (Pro)
+          </Button>
+        )}
+      </div>
     </>
   )
 }

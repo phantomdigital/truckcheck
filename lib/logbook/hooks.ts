@@ -1,15 +1,16 @@
 import { useRouter } from "next/navigation"
-import type { GeocodeResult } from "./types"
+import type { GeocodeResult, Stop } from "./types"
 
 /**
  * Hook to update URL with search parameters for shareable links
+ * Supports multiple stops
  */
 export function useURLUpdater() {
   const router = useRouter()
 
   const updateURL = (
     base: GeocodeResult,
-    dest: GeocodeResult,
+    stops: Stop[],
     distance: number,
     logbookRequired: boolean
   ) => {
@@ -17,9 +18,16 @@ export function useURLUpdater() {
     params.set("baseName", base.placeName)
     params.set("baseLat", base.lat.toString())
     params.set("baseLng", base.lng.toString())
-    params.set("destName", dest.placeName)
-    params.set("destLat", dest.lat.toString())
-    params.set("destLng", dest.lng.toString())
+    
+    // Add all stops (multiple stops for Pro users)
+    stops.forEach((stop, index) => {
+      if (stop.location) {
+        params.set(`stop${index}Name`, stop.address)
+        params.set(`stop${index}Lat`, stop.location.lat.toString())
+        params.set(`stop${index}Lng`, stop.location.lng.toString())
+      }
+    })
+    
     params.set("distance", distance.toString())
     params.set("logbookRequired", logbookRequired.toString())
     

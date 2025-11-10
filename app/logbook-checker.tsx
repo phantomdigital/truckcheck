@@ -11,16 +11,25 @@ import { StopsInput } from "@/components/logbook/stops-input"
 import { ResultDisplay } from "@/components/logbook/result-display"
 import { ResultSkeleton } from "@/components/logbook/result-skeleton"
 import { CSVImportModal } from "@/components/logbook/csv-import-modal"
-import { RecentSearches } from "@/components/recent-searches"
+import { RecentSearchesPro } from "@/components/recent-searches-pro"
 import { ResponsiveAd } from "@/components/adsense"
+import { ProUpgradeBanner } from "@/components/pro-upgrade-banner"
 import { useRecentSearches } from "@/lib/recent-searches-context"
 import type { RecentSearch } from "@/lib/recent-searches-context"
 import type { GeocodeResult, Stop, CalculationResult } from "@/lib/logbook/types"
 import { calculateDistance, geocodeAddress, calculateDrivingDistance } from "@/lib/logbook/utils"
 import { useURLUpdater, useShare } from "@/lib/logbook/hooks"
 import { toast } from "sonner"
+import { saveCalculationToHistory, validateMultipleStops } from "@/lib/stripe/actions"
+import { saveRecentSearch } from "@/lib/recent-searches/actions"
+import { getDepot, saveDepot, type DepotData } from "@/lib/depot/actions"
 
-export default function LogbookChecker() {
+interface LogbookCheckerProps {
+  isPro?: boolean
+  initialDepot?: DepotData | null
+}
+
+export default function LogbookChecker({ isPro = false, initialDepot = null }: LogbookCheckerProps) {
   const searchParams = useSearchParams()
   const [baseAddress, setBaseAddress] = useState("")
   const [baseLocation, setBaseLocation] = useState<GeocodeResult | null>(null)
@@ -31,18 +40,45 @@ export default function LogbookChecker() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<CalculationResult | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
-  const { saveSearch } = useRecentSearches()
-  const { updateURL } = useURLUpdater()
+  const [useDepot, setUseDepot] = useState(false)
+  const { updateURL} = useURLUpdater()
   const { handleShare: shareURL } = useShare()
+  
+  const hasDepot = initialDepot?.depot_address
 
   // Stop management functions
-  const addStop = () => {
+  const addStop = async () => {
+    // SECURITY: Server-side validation before allowing multiple stops
+    const validation = await validateMultipleStops()
+    if (!validation.success) {
+      toast.error(validation.error || 'Pro subscription required to add multiple stops')
+      return
+    }
+    
     const newStop: Stop = {
       id: `stop-${Date.now()}`,
       address: "",
       location: null
     }
-    setStops((currentStops) => [...currentStops, newStop])
+    setStops((currentStops) => {
+      const newStops = [...currentStops, newStop]
+      
+      // If depot toggle is ON and we're going from 1 stop to 2+ stops,
+      // automatically fill the new (last) stop with depot
+      if (useDepot && initialDepot && currentStops.length === 1 && newStops.length === 2) {
+        setTimeout(() => {
+          updateStopAddress(newStop.id, initialDepot.depot_address || '')
+          updateStopLocation(newStop.id, {
+            lat: initialDepot.depot_lat || 0,
+            lng: initialDepot.depot_lng || 0,
+            placeName: initialDepot.depot_address || '',
+          })
+          toast.success('Depot applied to final destination!')
+        }, 0)
+      }
+      
+      return newStops
+    })
   }
 
   const removeStop = (id: string) => {
@@ -62,7 +98,7 @@ export default function LogbookChecker() {
     )
   }
 
-  const updateStopLocation = (id: string, location: GeocodeResult) => {
+  const updateStopLocation = (id: string, location: GeocodeResult | null) => {
     setStops((currentStops) => 
       currentStops.map(stop => 
         stop.id === id ? { ...stop, location } : stop
@@ -101,40 +137,71 @@ export default function LogbookChecker() {
       const baseName = searchParams.get("baseName")
       const baseLat = searchParams.get("baseLat")
       const baseLng = searchParams.get("baseLng")
-      const destName = searchParams.get("destName")
-      const destLat = searchParams.get("destLat")
-      const destLng = searchParams.get("destLng")
       const distance = searchParams.get("distance")
       const logbookRequired = searchParams.get("logbookRequired")
 
-      if (baseName && baseLat && baseLng && destName && destLat && destLng && distance) {
+      if (baseName && baseLat && baseLng && distance) {
         const baseLoc: GeocodeResult = {
           placeName: baseName,
           lat: parseFloat(baseLat),
           lng: parseFloat(baseLng),
         }
-        const destLoc: GeocodeResult = {
-          placeName: destName,
-          lat: parseFloat(destLat),
-          lng: parseFloat(destLng),
-        }
 
         setBaseAddress(baseName)
         setBaseLocation(baseLoc)
         
-        // Convert URL destination to stops format
-        const convertedStops: Stop[] = [{
-          id: "stop-1",
-          address: destName,
-          location: destLoc
-        }]
+        // Parse all stops from URL (stop0, stop1, stop2, etc.)
+        const convertedStops: Stop[] = []
+        let stopIndex = 0
+        
+        while (true) {
+          const stopName = searchParams.get(`stop${stopIndex}Name`)
+          const stopLat = searchParams.get(`stop${stopIndex}Lat`)
+          const stopLng = searchParams.get(`stop${stopIndex}Lng`)
+          
+          if (!stopName || !stopLat || !stopLng) break
+          
+          convertedStops.push({
+            id: `stop-${Date.now()}-${stopIndex}`,
+            address: stopName,
+            location: {
+              placeName: stopName,
+              lat: parseFloat(stopLat),
+              lng: parseFloat(stopLng),
+            }
+          })
+          
+          stopIndex++
+        }
+        
+        // SECURITY: If URL has multiple stops but user is not Pro, show toast notification
+        if (convertedStops.length > 1 && !isPro) {
+          toast.info("Pro Feature Preview", {
+            description: "This shared link contains multiple stops (Pro feature). You can view the route but need Pro to recalculate or edit it.",
+            duration: 8000, // Show longer since it's important info
+          })
+        }
+        
+        // Ensure at least one stop
+        if (convertedStops.length === 0) {
+          convertedStops.push({
+            id: "stop-1",
+            address: "",
+            location: null
+          })
+        }
+        
         setStops(convertedStops)
 
         // Calculate driving distance for URL-loaded results
+        const stopCoordinates = convertedStops
+          .filter(s => s.location)
+          .map(s => ({ lat: s.location!.lat, lng: s.location!.lng }))
+          
         const routeData = await calculateDrivingDistance(
           baseLoc.lat,
           baseLoc.lng,
-          [{ lat: destLoc.lat, lng: destLoc.lng }]
+          stopCoordinates
         )
 
         const result: CalculationResult = {
@@ -152,9 +219,21 @@ export default function LogbookChecker() {
 
     loadFromURL()
     setIsInitialized(true)
-  }, [searchParams, isInitialized])
+  }, [searchParams, isInitialized, isPro])
 
   const handleCalculate = async () => {
+    // SECURITY: Validate stops count for Pro feature
+    if (stops.length > 1 && !isPro) {
+      toast.error("Pro Subscription Required", {
+        description: "Multiple stops require a Pro subscription. Please upgrade or use a single destination.",
+        action: {
+          label: "Upgrade",
+          onClick: () => window.open("/pricing", "_blank"),
+        },
+      })
+      return
+    }
+
     setLoading(true)
     setError(null)
     setResult(null)
@@ -192,7 +271,15 @@ export default function LogbookChecker() {
       for (let i = 0; i < stops.length; i++) {
         const stop = stops[i]
         
-        if (stop.location && stop.location.placeName === stop.address) {
+        // Check if stop has valid location with non-zero coordinates
+        const hasValidLocation = stop.location && 
+          stop.location.lat !== 0 && 
+          stop.location.lng !== 0 &&
+          !isNaN(stop.location.lat) &&
+          !isNaN(stop.location.lng) &&
+          stop.location.placeName.trim() === stop.address.trim()
+        
+        if (hasValidLocation) {
           finalStops.push(stop)
         } else if (!stop.address.trim()) {
           const errorMsg = `Please enter an address for stop ${i + 1}`
@@ -224,7 +311,7 @@ export default function LogbookChecker() {
       const finalDestination = finalStops[finalStops.length - 1].location!
 
       // Calculate straight-line distance to final destination
-      const distance = calculateDistance(
+      let distance = calculateDistance(
         finalBaseLocation.lat,
         finalBaseLocation.lng,
         finalDestination.lat,
@@ -242,6 +329,12 @@ export default function LogbookChecker() {
       // Determine if logbook is required
       const maxDistanceFromBase = routeData?.maxDistanceFromBase || distance
       const logbookRequired = maxDistanceFromBase > 100
+      
+      // For round trips (base = destination), show the furthest point distance instead of 0
+      const isRoundTrip = distance < 1 // Less than 1km means essentially same location
+      if (isRoundTrip && maxDistanceFromBase > 0) {
+        distance = maxDistanceFromBase
+      }
 
       const calculationResult: CalculationResult = {
         distance,
@@ -255,20 +348,49 @@ export default function LogbookChecker() {
 
       setResult(calculationResult)
 
-      // Update URL with search parameters (for now, just use first and last stop)
-      updateURL(finalBaseLocation, finalDestination, distance, logbookRequired)
+      // Save to history if Pro user (via Server Action)
+      if (isPro) {
+        try {
+          const result = await saveCalculationToHistory({
+            baseLocation: finalBaseLocation,
+            stops: finalStops.map(s => ({
+              address: s.address,
+              location: s.location,
+            })),
+            destination: finalDestination,
+            distance,
+            maxDistanceFromBase: calculationResult.maxDistanceFromBase,
+            drivingDistance: calculationResult.drivingDistance,
+            logbookRequired,
+            routeGeometry: calculationResult.routeGeometry,
+          })
+          
+          if (!result.success) {
+            throw new Error(result.error || "Failed to save calculation history")
+          }
+        } catch (error) {
+          // Silently fail - history saving shouldn't block the UI
+          console.error("Failed to save calculation history:", error)
+        }
+      }
 
-      // Save to recent searches (save all stops)
-      saveSearch({
-        baseLocation: finalBaseLocation,
-        stops: finalStops.map(stop => ({
-          placeName: stop.location!.placeName,
-          lat: stop.location!.lat,
-          lng: stop.location!.lng,
-        })),
-        distance,
-        logbookRequired,
-      })
+      // Update URL with search parameters (includes all stops)
+      updateURL(finalBaseLocation, finalStops, distance, logbookRequired)
+
+      // Save to recent searches (Pro users only)
+      if (isPro) {
+        try {
+          await saveRecentSearch({
+            baseLocation: finalBaseLocation,
+            stops: finalStops.map(stop => stop.location).filter((loc): loc is NonNullable<typeof loc> => loc !== null),
+            distance,
+            logbookRequired,
+          })
+        } catch (error) {
+          // Silently fail - recent search saving shouldn't block the UI
+          console.error("Failed to save recent search:", error)
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred while calculating the distance")
     } finally {
@@ -283,10 +405,29 @@ export default function LogbookChecker() {
     
     // Convert stops array (support legacy destination format)
     const stopsArray = search.stops || (search.destination ? [search.destination] : [])
-    const convertedStops: Stop[] = stopsArray.map((stop, index) => ({
+    
+    // Validate that all stops have valid coordinates
+    const hasValidCoordinates = stopsArray.every((stop: any) => 
+      typeof stop.lat === 'number' && 
+      typeof stop.lng === 'number' && 
+      !isNaN(stop.lat) && 
+      !isNaN(stop.lng)
+    )
+    
+    if (!hasValidCoordinates) {
+      console.error('Recent search has invalid coordinates:', search)
+      toast.error('This recent search has invalid location data')
+      return
+    }
+    
+    const convertedStops: Stop[] = stopsArray.map((stop: any, index) => ({
       id: `stop-${Date.now()}-${index}`,
-      address: stop.placeName,
-      location: stop
+      address: stop.placeName || stop.address || '',
+      location: {
+        placeName: stop.placeName || stop.address || '',
+        lat: stop.lat,
+        lng: stop.lng,
+      }
     }))
     setStops(convertedStops)
     
@@ -314,11 +455,8 @@ export default function LogbookChecker() {
     }
     setResult(result)
     
-    // Update URL with search parameters (use final stop for URL)
-    const finalStop = stopsArray[stopsArray.length - 1]
-    if (finalStop) {
-      updateURL(search.baseLocation, finalStop, search.distance, search.logbookRequired)
-    }
+    // Update URL with search parameters (includes all stops from recent search)
+    updateURL(search.baseLocation, convertedStops, search.distance, search.logbookRequired)
   }
 
   const handleCSVImport = (baseLocation: GeocodeResult, importedStops: Stop[]) => {
@@ -339,7 +477,7 @@ export default function LogbookChecker() {
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl font-semibold tracking-tight">Enter Locations</CardTitle>
-                  <CSVImportModal onImport={handleCSVImport} disabled={loading} />
+                  <CSVImportModal onImport={handleCSVImport} disabled={loading} isPro={isPro} />
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -352,6 +490,64 @@ export default function LogbookChecker() {
                   onSelect={setBaseLocation}
                   placeholder="e.g., Sydney, NSW or enter an address"
                   location={baseLocation}
+                  isPro={isPro}
+                  showSaveAsDepot={true}
+                  hasDepot={!!hasDepot}
+                  depotName={initialDepot?.depot_name || 'Depot'}
+                  useDepot={useDepot}
+                  onToggleDepot={(checked) => {
+                    setUseDepot(checked)
+                    if (checked && initialDepot) {
+                      // Fill in base location
+                      setBaseAddress(initialDepot.depot_address || '')
+                      setBaseLocation({
+                        lat: initialDepot.depot_lat || 0,
+                        lng: initialDepot.depot_lng || 0,
+                        placeName: initialDepot.depot_address || '',
+                      })
+                      
+                      // Only fill final destination as depot if there are 2+ stops
+                      // (meaning there are stops in between base and destination)
+                      if (stops.length > 1) {
+                        const lastStop = stops[stops.length - 1]
+                        updateStopAddress(lastStop.id, initialDepot.depot_address || '')
+                        updateStopLocation(lastStop.id, {
+                          lat: initialDepot.depot_lat || 0,
+                          lng: initialDepot.depot_lng || 0,
+                          placeName: initialDepot.depot_address || '',
+                        })
+                        toast.success('Depot applied to base & destination!')
+                      } else {
+                        toast.success('Depot applied to base location!')
+                      }
+                    } else {
+                      // Clear when toggled off
+                      setBaseAddress('')
+                      setBaseLocation(null)
+                      if (stops.length > 1) {
+                        const lastStop = stops[stops.length - 1]
+                        updateStopAddress(lastStop.id, '')
+                        updateStopLocation(lastStop.id, null)
+                      }
+                    }
+                  }}
+                  onSaveAsDepot={async (location) => {
+                    // Auto-name as "Depot 1" (they can edit in account settings)
+                    const result = await saveDepot({
+                      name: 'Depot 1',
+                      address: location.placeName,
+                      lat: location.lat,
+                      lng: location.lng,
+                    })
+                    
+                    if (result.success) {
+                      toast.success('Depot saved! Toggle it on to use.')
+                      // Refresh the page to show the depot toggle
+                      window.location.reload()
+                    } else {
+                      toast.error(result.error || 'Failed to save depot')
+                    }
+                  }}
                 />
 
                 {/* Divider */}
@@ -365,13 +561,14 @@ export default function LogbookChecker() {
                   onUpdateStopAddress={updateStopAddress}
                   onUpdateStopLocation={updateStopLocation}
                   onReorder={reorderStops}
+                  isPro={isPro}
                 />
 
                 {/* Calculate Button */}
                 <div className="pt-2">
                   <Button
                     onClick={handleCalculate}
-                    disabled={loading || !baseAddress.trim() || stops.some(s => !s.address.trim())}
+                    disabled={loading || !baseAddress?.trim() || stops.some(s => !s.address?.trim())}
                     className="w-full"
                     size="lg"
                   >
@@ -402,25 +599,32 @@ export default function LogbookChecker() {
               <ResultSkeleton />
             )}
 
-            {result && (
-              <>
-                <ResultDisplay
-                  result={result}
-                  onShare={handleShare}
-                />
+                  {result && (
+                    <>
+                      <ResultDisplay
+                        result={result}
+                        onShare={handleShare}
+                        isPro={isPro}
+                      />
                 
-                {/* Ad placement after result */}
-                <ResponsiveAd adSlot="YOUR_AD_SLOT_1" className="mt-6" />
+                      {/* Pro Upgrade Banner - show after result for free users */}
+                      {!isPro && <ProUpgradeBanner variant="detailed" className="mt-6" />}
               </>
             )}
           </div>
 
-          <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-            <RecentSearches onSelect={handleRecentSearchSelect} />
-            
-            {/* Ad placement in sidebar */}
-            <ResponsiveAd adSlot="YOUR_AD_SLOT_2" />
-          </div>
+                <div className="lg:col-span-1 space-y-4 sm:space-y-6">
+                  {/* Recent Searches - Pro feature only */}
+                  {isPro && <RecentSearchesPro onSelect={handleRecentSearchSelect} />}
+                  
+                  {/* Pro Upgrade Banner - show for free users in sidebar */}
+                  {!isPro && <ProUpgradeBanner variant="compact" />}
+                  
+                  {/* Ad placement in sidebar - only show for free users
+                      SECURITY: isPro is validated server-side in page.tsx via getSubscriptionStatus()
+                      User cannot bypass this check - it comes from database query in Server Component */}
+                  {!isPro && <ResponsiveAd adSlot="YOUR_AD_SLOT_2" />}
+                </div>
         </div>
         </div>
       </div>

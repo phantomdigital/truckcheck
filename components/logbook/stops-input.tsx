@@ -18,7 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { Button } from "@/components/ui/button"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
-import { Plus, X, Navigation, MapPin, GripVertical } from "lucide-react"
+import { Plus, X, Navigation, MapPin, GripVertical, Lock } from "lucide-react"
 import type { Stop, GeocodeResult } from "@/lib/logbook/types"
 
 interface StopsInputProps {
@@ -28,6 +28,7 @@ interface StopsInputProps {
   onUpdateStopAddress: (id: string, address: string) => void
   onUpdateStopLocation: (id: string, location: GeocodeResult) => void
   onReorder: (startIndex: number, endIndex: number) => void
+  isPro?: boolean
 }
 
 interface SortableStopItemProps {
@@ -151,6 +152,7 @@ export function StopsInput({
   onUpdateStopAddress,
   onUpdateStopLocation,
   onReorder,
+  isPro = false,
 }: StopsInputProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -185,16 +187,30 @@ export function StopsInput({
             ({stops.length} {stops.length === 1 ? 'stop' : 'stops'})
           </span>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onAddStop}
-          className="gap-1.5"
-        >
-          <Plus className="h-4 w-4" />
-          Add Stop
-        </Button>
+        {isPro ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onAddStop}
+            className="gap-1.5"
+          >
+            <Plus className="h-4 w-4" />
+            Add Stop
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled
+            className="gap-1.5"
+            title="Pro feature - Upgrade to add multiple stops"
+          >
+            <Lock className="h-4 w-4" />
+            Add Stop (Pro)
+          </Button>
+        )}
       </div>
 
       <DndContext

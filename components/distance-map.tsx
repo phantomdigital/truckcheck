@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import mapboxgl from "mapbox-gl"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { Lock } from "lucide-react"
 
 interface Location {
   lat: number
@@ -22,6 +23,7 @@ interface DistanceMapProps {
   stops: Stop[]
   routeGeometry?: any
   maxDistanceFromBase?: number | null
+  isPro?: boolean
 }
 
 // Extended map type with our custom method
@@ -34,16 +36,19 @@ interface MapContainerElement extends HTMLDivElement {
   __mapInstance?: ExtendedMap
 }
 
-export function DistanceMap({ baseLocation, stops, routeGeometry, maxDistanceFromBase }: DistanceMapProps) {
-  // Get final destination from last stop
-  const destination = stops[stops.length - 1]?.location || baseLocation
+export function DistanceMap({ baseLocation, stops, routeGeometry, maxDistanceFromBase, isPro = false }: DistanceMapProps) {
+  // Get final destination from last stop, ensure it has valid coordinates
+  const lastStopLocation = stops[stops.length - 1]?.location
+  const destination = (lastStopLocation && lastStopLocation.lat !== 0 && lastStopLocation.lng !== 0) 
+    ? lastStopLocation 
+    : baseLocation
   const mapContainer = useRef<MapContainerElement>(null)
   const map = useRef<ExtendedMap | null>(null)
   const markersRef = useRef<mapboxgl.Marker[]>([])
   const originalBoundsRef = useRef<mapboxgl.LngLatBounds | null>(null)
   const originalCenterRef = useRef<[number, number] | null>(null)
   const originalZoomRef = useRef<number | null>(null)
-  const [show100kmRadius, setShow100kmRadius] = useState(true)
+  const [show100kmRadius, setShow100kmRadius] = useState(isPro)
 
   useEffect(() => {
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
@@ -597,12 +602,21 @@ export function DistanceMap({ baseLocation, stops, routeGeometry, maxDistanceFro
               id="show-100km-radius"
               checked={show100kmRadius}
               onCheckedChange={setShow100kmRadius}
+              disabled={!isPro}
             />
             <Label
               htmlFor="show-100km-radius"
-              className="text-sm font-medium cursor-pointer"
+              className={`text-sm font-medium ${isPro ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} flex items-center gap-2`}
+              title={!isPro ? "Pro feature - Upgrade to unlock" : undefined}
             >
-              Show 100 km radius
+              {!isPro ? (
+                <>
+                  Show 100 km radius (Pro)
+                  <Lock className="h-3 w-3" />
+                </>
+              ) : (
+                "Show 100 km radius"
+              )}
             </Label>
           </div>
         </div>

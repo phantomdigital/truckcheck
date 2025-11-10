@@ -214,3 +214,82 @@ project_specific:
     - Keep URL parameters shareable and bookmarkable
     - Never store sensitive information in URLs or localStorage
 
+## Stripe & Subscriptions
+
+stripe:
+  data_fetching:
+    - ALWAYS fetch subscription status and calculation history in Server Components (page.tsx)
+    - NEVER fetch subscription data in client components - pass as props instead
+    - Use Server Actions (getSubscriptionStatus, getCalculationHistory) only in Server Components
+    - Pass subscription status (isPro) as props from page.tsx to client components
+    - Use revalidatePath() after mutations to ensure fresh data on next render
+  
+  server_components:
+    - Fetch all data at the page level (page.tsx) before rendering client components
+    - Server Actions should only be called from Server Components for data fetching
+    - Pass fetched data as props to client components - never fetch in client components
+  
+  mutations:
+    - Client components can call Server Actions directly for mutations
+    - Server Actions are designed to be called from client components (they have "use server" directive)
+    - This is simpler and more type-safe than using API routes
+    - Pattern: Server Components fetch data, Client Components call Server Actions for mutations
+  
+  feature_gating:
+    - Gate features by passing isPro prop from Server Components (page.tsx)
+    - Show upgrade prompts when free users try to access Pro features
+    - Disable Pro features for free users with clear messaging
+    - ALL Pro features MUST call validation Server Actions before executing:
+      * Multiple Stops: call validateMultipleStops() before addStop()
+      * CSV Import: call validateCSVImport() before processing CSV
+      * PDF Export: call validatePDFExport() before generating PDF
+    - Validation pattern for client components:
+      ```typescript
+      const handleFeature = async () => {
+        const validation = await validateFeature()
+        if (!validation.success) {
+          toast.error(validation.error)
+          return
+        }
+        // Feature logic here
+      }
+      ```
+  
+  calculation_history:
+    - Only save calculation history for Pro users
+    - Silently fail history saving - don't block UI if it fails
+    - Use revalidatePath() after saving/deleting calculations
+  
+  security:
+    - MANDATORY: All Pro features must have server-side validation before use
+    - Three layers of security (defense in depth):
+      1. Client-side checks (isPro prop) - UX only, NOT security
+      2. Server Actions validation - validate subscription BEFORE executing feature
+      3. Database RLS policies - enforce subscription at database level (for persisted data)
+    - Pattern for client-side Pro features (CSV, PDF, Multiple Stops):
+      * Client component calls validation Server Action
+      * If validation passes, client-side processing proceeds
+      * If validation fails, show error and return
+    - Pattern for server-persisted Pro features (History, Recent Searches):
+      * Client component calls Server Action
+      * Server Action validates subscription status
+      * Database RLS policy provides final enforcement
+    - ALWAYS validate Pro subscription status server-side in Server Actions
+    - Never trust client-side data - validate everything on the server
+    - Verify user owns the data they're trying to access/modify
+    - RLS policies check subscription_status in users table before allowing operations
+    - See STRIPE_SECURITY.md for detailed security model
+  
+  ads:
+    - Ad display is controlled by isPro prop from Server Component
+    - Server Component (page.tsx) calls getSubscriptionStatus() which queries database
+    - Ad components only rendered server-side if user is not Pro
+    - User cannot bypass this - isPro comes from server-side database query
+    - No RLS needed - ads are 3rd-party JavaScript, not database operations
+    - Security: Server decides whether to include ad code in HTML, not client
+  
+  webhooks:
+    - Handle all Stripe webhook events in /api/stripe/webhook route
+    - Update user subscription status in Supabase on subscription events
+    - Use metadata to link Stripe subscriptions to Supabase users
+

@@ -15,6 +15,7 @@ A web tool for Australian truck drivers and fleet managers to check if they need
 - Node.js 18+ 
 - npm or yarn
 - Mapbox account and access token (free tier available)
+- Supabase account and project (optional, for authentication features)
 
 ## Setup
 
@@ -23,13 +24,22 @@ A web tool for Australian truck drivers and fleet managers to check if they need
    npm install
    ```
 
-2. **Set up Mapbox API token:**
+2. **Set up environment variables:**
    - Create a `.env.local` file in the root directory
    - Add your Mapbox access token:
      ```
      NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=your_mapbox_access_token_here
      ```
    - Get your token from [Mapbox Account](https://account.mapbox.com/access-tokens/)
+   
+   - **Optional - For Supabase Authentication:**
+     - Create a Supabase project at [supabase.com](https://supabase.com)
+     - Add your Supabase credentials to `.env.local`:
+       ```
+       NEXT_PUBLIC_SUPABASE_URL=your-project-url
+       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+       ```
+     - Get these values from your Supabase project settings: [API Settings](https://supabase.com/dashboard/project/_/settings/api)
 
 3. **Run the development server:**
    ```bash
@@ -62,6 +72,7 @@ Under NHVR rules:
 - **Tailwind CSS**
 - **shadcn/ui** components
 - **Mapbox Geocoding API**
+- **Supabase** (for authentication - optional)
 
 ## Project Structure
 

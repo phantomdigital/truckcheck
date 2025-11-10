@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NHVR Logbook Checker
 
-## Getting Started
+A web tool for Australian truck drivers and fleet managers to check if they need to complete a work diary (logbook) based on NHVR regulations.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Distance Calculation**: Calculates straight-line distance (as the crow flies) between base location and destination
+- **NHVR Compliance**: Determines if a logbook is required based on the 100km rule
+- **Mapbox Integration**: Uses Mapbox Geocoding API to convert addresses to coordinates
+- **Mobile-Friendly**: Responsive design optimized for mobile devices
+- **Clean UI**: Built with shadcn/ui components and Tailwind CSS
+
+## Requirements
+
+- Node.js 18+ 
+- npm or yarn
+- Mapbox account and access token (free tier available)
+
+## Setup
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Set up Mapbox API token:**
+   - Create a `.env.local` file in the root directory
+   - Add your Mapbox access token:
+     ```
+     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=your_mapbox_access_token_here
+     ```
+   - Get your token from [Mapbox Account](https://account.mapbox.com/access-tokens/)
+
+3. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Open your browser:**
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+## How It Works
+
+1. Enter your **Base Location** (where you start from)
+2. Enter your **Destination** (where you're driving to)
+3. Click **Calculate Distance**
+4. The tool will:
+   - Geocode both addresses using Mapbox
+   - Calculate the straight-line distance using the Haversine formula
+   - Display whether a logbook is required based on NHVR regulations
+
+## NHVR Regulations
+
+Under NHVR rules:
+- **No logbook required**: If travelling within 100km (as the crow flies) of your base
+- **Logbook required**: If travelling more than 100km from your base
+
+## Tech Stack
+
+- **Next.js 15+** (App Router)
+- **TypeScript**
+- **Tailwind CSS**
+- **shadcn/ui** components
+- **Mapbox Geocoding API**
+
+## Project Structure
+
+```
+├── app/
+│   ├── logbook-checker.tsx  # Main logbook checker component
+│   ├── page.tsx             # Home page
+│   ├── layout.tsx           # Root layout
+│   └── globals.css          # Global styles
+├── components/
+│   └── ui/                  # shadcn/ui components
+│       ├── input.tsx
+│       ├── button.tsx
+│       ├── card.tsx
+│       └── alert.tsx
+├── lib/
+│   └── utils.ts             # Utility functions
+└── components.json           # shadcn/ui configuration
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## License
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT

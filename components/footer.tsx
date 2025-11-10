@@ -1,0 +1,138 @@
+import Link from "next/link"
+import Image from "next/image"
+import { Coffee, Heart } from "lucide-react"
+import { ResponsiveAd } from "@/components/adsense"
+import { navigationItems } from "@/lib/navigation"
+
+export function Footer() {
+  const currentYear = new Date().getFullYear()
+
+  return (
+    <footer className="w-full border-t border-border/50 mt-auto bg-muted/20">
+      <div className="w-full max-w-[100rem] mx-auto px-4 lg:px-8 py-12">
+        <div className="max-w-6xl mx-auto">
+          {/* Ad placement in footer */}
+          <div className="mb-8">
+            <ResponsiveAd adSlot="YOUR_AD_SLOT_3" />
+          </div>
+          {/* Main Footer Content */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+            {/* About Section with Logo */}
+            <div className="space-y-4">
+              <Image
+                src="/logo.png"
+                alt="TruckCheck"
+                width={140}
+                height={40}
+                className="object-contain h-10"
+              />
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Free tools for Australian truck drivers and fleet managers. NHVR compliance made simple.
+              </p>
+            </div>
+
+            {/* Tools Section */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold">Tools</h3>
+              <ul className="space-y-2 text-sm">
+                {navigationItems.map((item) => (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {item.title}
+                    </Link>
+                  </li>
+                ))}
+                {navigationItems.length === 1 && (
+                  <li className="text-muted-foreground/50">
+                    More tools coming soon
+                  </li>
+                )}
+              </ul>
+            </div>
+
+            {/* Legal Section */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold">Legal</h3>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link
+                    href="/privacy"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/terms"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Terms of Service
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Support Section */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold">Support This Project</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                If you find this tool helpful, consider buying us a coffee!
+              </p>
+              <a
+                href="https://www.buymeacoffee.com/truckcheck"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#FFDD00] hover:bg-[#FFDD00]/90 text-black text-sm font-medium transition-colors"
+              >
+                <Coffee className="h-4 w-4" />
+                Buy Me a Coffee
+              </a>
+            </div>
+          </div>
+
+          {/* Disclaimer */}
+          <div className="py-6 border-t border-border/50">
+            <div className="flex items-start gap-2 mb-6">
+              <span className="text-xs text-muted-foreground shrink-0 mt-0.5"></span>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <strong>Disclaimer:</strong> This tool is for reference only and should not be considered legal advice. 
+                Always consult the official NHVR regulations and guidelines. While we strive for accuracy, 
+                we cannot guarantee the results are error-free. Use at your own discretion.
+              </p>
+            </div>
+
+            {/* Bottom Bar */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t border-border/50">
+              <p className="text-xs text-muted-foreground">
+                © {currentYear} TruckCheck. Made for Aussie Truckies.
+              </p>
+              
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <Link
+                  href="https://nhvr.gov.au"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-foreground transition-colors"
+                >
+                  Visit NHVR.gov.au
+                </Link>
+                <span>•</span>
+                <Link
+                  href="/contact"
+                  className="hover:text-foreground transition-colors"
+                >
+                  Contact
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  )
+}
+

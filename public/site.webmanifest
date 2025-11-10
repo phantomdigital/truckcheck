@@ -1,0 +1,17 @@
+{
+  "name": "TruckCheck - NHVR Logbook Checker",
+  "short_name": "TruckCheck",
+  "description": "Free NHVR logbook checker to determine if a work diary is required for your truck journey",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}
+

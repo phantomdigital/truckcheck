@@ -1,0 +1,15 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow admin or private routes (add as needed)
+# Disallow: /api/
+# Disallow: /admin/
+
+# Sitemap location
+Sitemap: https://truckcheck.com.au/sitemap.xml
+
+# Crawl-delay for specific bots (optional)
+# User-agent: Googlebot
+# Crawl-delay: 0
+

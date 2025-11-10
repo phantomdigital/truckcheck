@@ -1,0 +1,216 @@
+# TruckCheck Project Rules
+# These rules ensure code quality, consistency, and maintainability
+
+## TypeScript Rules
+
+typescript:
+  strict_types:
+    - Never use `as any` - always create proper type definitions or interfaces
+    - Never use `@ts-ignore` or `@ts-expect-error` without a detailed comment explaining why
+    - Avoid using `any` type - use `unknown` if the type is truly unknown, then narrow it with type guards
+    - Always explicitly type function return values for public functions
+    - Use strict null checks - handle null and undefined explicitly
+    - Prefer interfaces over types for object shapes (unless using unions/intersections)
+  
+  type_definitions:
+    - Create dedicated type/interface files when types are shared across multiple files
+    - Export types from a central location when used across the application
+    - Use discriminated unions for complex state management
+    - Always define proper types for component props, never use implicit any
+  
+  imports:
+    - Use type-only imports when importing types: `import type { ... }`
+    - Keep imports organized: React first, then third-party, then local imports
+    - Use path aliases (@/) for cleaner imports
+
+## React & Next.js Rules
+
+react:
+  components:
+    - Server components by default - only add "use client" when necessary
+    - If a server component needs client functionality, create a separate kebab-case client component file in the same folder and import it
+    - Never use 'export *' in client boundaries - always use named exports
+    - Component file names should match the component name (PascalCase for components, kebab-case for utilities)
+    - Keep components focused and single-responsibility
+  
+  client_components:
+    - Use "use client" directive only at the top of files that need client-side features
+    - Client components should be in separate files from server components
+    - Follow kebab-case naming for client component files that are imported by server components
+    - Example: header.tsx (server) imports header-button.tsx (client)
+  
+  state_management:
+    - Use functional setState updates when new state depends on previous state
+    - Example: `setItems(prevItems => [...prevItems, newItem])` instead of `setItems([...items, newItem])`
+    - Prevents stale closure issues
+    - Use Context for shared state that needs to be accessed by multiple components
+  
+  hooks:
+    - Always include proper dependencies in useEffect, useMemo, useCallback
+    - Extract complex logic into custom hooks
+    - Follow the "use" naming convention for custom hooks
+  
+  data_loading:
+    - Data must be loaded on the server first, then on the client
+    - No wrapper components for data loading - keep loading logic explicit
+
+## Styling Rules
+
+styling:
+  tailwind:
+    - Use Tailwind CSS utility classes for all styling
+    - Follow the standard container pattern: `w-full max-w-[100rem] mx-auto px-4 lg:px-8`
+    - Ensures consistent alignment with header across all page sections
+    - Provides 1600px maximum width, responsive padding (16px mobile, 32px desktop)
+    - Centers content on larger screens
+  
+  components:
+    - Use shadcn/ui components for all UI elements (buttons, inputs, cards, dialogs, etc.)
+    - Customize shadcn/ui components by modifying the component files, not with wrapper components
+    - Keep consistent border opacity: use `border-border/50` for subtle borders in dark mode
+    - Use semantic color tokens (primary, secondary, destructive, muted) not hard-coded colors
+
+## Code Quality Rules
+
+code_quality:
+  logging:
+    - Only use console.log, console.warn, console.error in development
+    - Never commit production code with debug console statements
+    - Use proper error handling instead of console.error in production
+    - Consider using a logging library for production error tracking
+  
+  error_handling:
+    - Always handle errors gracefully with user-friendly messages
+    - Use try-catch blocks for async operations
+    - Provide fallback UI for error states
+    - Never expose technical error details to end users
+  
+  performance:
+    - Lazy load components that aren't needed immediately
+    - Optimize images using Next.js Image component
+    - Minimize client-side JavaScript - prefer server components
+    - Use React.memo() sparingly and only when profiling shows benefit
+  
+  accessibility:
+    - Always include proper ARIA labels for interactive elements
+    - Ensure keyboard navigation works for all interactive components
+    - Use semantic HTML elements
+    - Provide alt text for images
+    - Ensure sufficient color contrast
+
+## API & External Services
+
+api:
+  environment_variables:
+    - All API keys and secrets must use environment variables
+    - Prefix public env vars with NEXT_PUBLIC_ (e.g., NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN)
+    - Never commit .env files to version control
+    - Document all required environment variables in README
+  
+  error_handling:
+    - Always handle API failures gracefully
+    - Provide retry logic for transient failures
+    - Show user-friendly error messages
+    - Log API errors for debugging (development only)
+  
+  rate_limiting:
+    - Implement debouncing for user input that triggers API calls (e.g., autocomplete)
+    - Cache API responses when appropriate
+    - Respect API rate limits
+
+## File Organization
+
+organization:
+  structure:
+    - Place shared components in /components
+    - Place feature-specific components in /components/[feature-name]
+    - Place utilities in /lib
+    - Place types in /lib/[feature-name]/types.ts or at the component level
+    - Use barrel exports (index.ts) to simplify imports from feature folders
+  
+  naming:
+    - Components: PascalCase (e.g., LogbookChecker.tsx)
+    - Utilities: camelCase (e.g., calculateDistance.ts)
+    - Client components imported by servers: kebab-case (e.g., header-button.tsx)
+    - Types/Interfaces: PascalCase (e.g., GeocodeResult)
+    - Constants: UPPER_SNAKE_CASE (e.g., MAX_DISTANCE_KM)
+  
+  imports_exports:
+    - Use named exports over default exports for better refactoring
+    - Create index.ts files for cleaner imports from feature folders
+    - Keep imports organized and remove unused imports
+
+## Git & Version Control
+
+git:
+  commits:
+    - Write clear, descriptive commit messages
+    - Use conventional commits format: feat:, fix:, docs:, style:, refactor:, test:, chore:
+    - Keep commits focused on a single change
+  
+  branches:
+    - Never force push to main/master
+    - Use descriptive branch names
+    - Delete branches after merging
+  
+  hooks:
+    - Never skip git hooks (--no-verify) unless absolutely necessary
+    - Always run linting and type checking before committing
+
+## Documentation
+
+documentation:
+  code_comments:
+    - Write comments for complex logic, not obvious code
+    - Use JSDoc comments for public functions and components
+    - Explain "why" not "what" in comments
+  
+  readme:
+    - Keep README up to date with setup instructions
+    - Document all environment variables
+    - Include examples for common use cases
+  
+  types:
+    - Well-named types serve as documentation
+    - Add comments to explain non-obvious type constraints
+
+## Testing (Future)
+
+testing:
+  approach:
+    - Write tests for critical business logic
+    - Test user interactions, not implementation details
+    - Use React Testing Library for component tests
+    - Mock external API calls in tests
+
+## Language & Localization
+
+language:
+  spelling:
+    - Use Australian English spelling throughout the codebase
+    - Examples: "travelling" not "traveling", "colour" not "color"
+    - Use Australian terminology (e.g., "logbook" not "log book")
+  
+  formatting:
+    - Use Australian date formats (DD/MM/YYYY)
+    - Use metric units (km, not miles)
+    - Use Australian address formats
+
+## Project-Specific Rules
+
+project_specific:
+  nhvr_regulations:
+    - Logbook required when travelling more than 100km from base
+    - Base this on maximum distance from base along the driving route, not just straight-line distance to destination
+    - Always include disclaimers that this tool is for reference only
+  
+  mapbox:
+    - Always set preserveDrawingBuffer: true on map instances (required for PDF/print capture)
+    - Store map instances properly for external access when needed
+    - Reset map to original bounds before PDF capture
+  
+  user_data:
+    - Store recent searches in localStorage only (no server-side storage yet)
+    - Keep URL parameters shareable and bookmarkable
+    - Never store sensitive information in URLs or localStorage
+

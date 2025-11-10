@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
 import Script from "next/script"
+import { Suspense } from "react"
 import LogbookChecker from "../logbook-checker"
+import { ResultSkeleton } from "@/components/logbook/result-skeleton"
 import { generatePageMetadata } from "@/lib/seo/config"
 import {
   getNHVRCalculatorSchema,
@@ -89,7 +91,15 @@ export default function NHVRLogbookCheckerPage() {
         </div>
       </header>
 
-      <LogbookChecker />
+      <Suspense fallback={
+        <div className="w-full max-w-[100rem] mx-auto px-4 lg:px-8 py-6">
+          <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+            <ResultSkeleton />
+          </div>
+        </div>
+      }>
+        <LogbookChecker />
+      </Suspense>
     </>
   )
 }

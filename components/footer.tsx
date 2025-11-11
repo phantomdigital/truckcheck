@@ -1,22 +1,24 @@
 import Link from "next/link"
 import Image from "next/image"
-import { Coffee, Heart } from "lucide-react"
-import { ResponsiveAd } from "@/components/adsense"
+import { ResponsiveAd } from "@/components/ezoic"
 import { navigationItems } from "@/lib/navigation"
+import { getSubscriptionStatus } from "@/lib/stripe/actions"
 
-export function Footer() {
+export async function Footer() {
   const currentYear = new Date().getFullYear()
+  const { isPro } = await getSubscriptionStatus()
 
   return (
     <footer className="w-full border-t border-border/50 mt-auto bg-muted/20">
-      <div className="w-full max-w-[100rem] mx-auto px-4 lg:px-8 py-12">
-        <div className="max-w-6xl mx-auto">
-          {/* Ad placement in footer */}
-          <div className="mb-8">
-            <ResponsiveAd adSlot="YOUR_AD_SLOT_3" />
-          </div>
+      <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-12">
+          {/* Ad placement in footer - only show for free users */}
+          {!isPro && (
+            <div className="mb-8">
+              <ResponsiveAd placementId={101} />
+            </div>
+          )}
           {/* Main Footer Content */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
             {/* About Section with Logo */}
             <div className="space-y-4">
               <Image
@@ -75,23 +77,6 @@ export function Footer() {
                 </li>
               </ul>
             </div>
-
-            {/* Support Section */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold">Support This Project</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                If you find this tool helpful, consider buying us a coffee!
-              </p>
-              <a
-                href="https://www.buymeacoffee.com/truckcheck"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#FFDD00] hover:bg-[#FFDD00]/90 text-black text-sm font-medium transition-colors"
-              >
-                <Coffee className="h-4 w-4" />
-                Buy Me a Coffee
-              </a>
-            </div>
           </div>
 
           {/* Disclaimer */}
@@ -130,7 +115,6 @@ export function Footer() {
               </div>
             </div>
           </div>
-        </div>
       </div>
     </footer>
   )

@@ -12,7 +12,7 @@ import { ResultDisplay } from "@/components/logbook/result-display"
 import { ResultSkeleton } from "@/components/logbook/result-skeleton"
 import { CSVImportModal } from "@/components/logbook/csv-import-modal"
 import { RecentSearchesPro } from "@/components/recent-searches-pro"
-import { ResponsiveAd } from "@/components/adsense"
+import { ResponsiveAd } from "@/components/ezoic"
 import { ProUpgradeBanner } from "@/components/pro-upgrade-banner"
 import { useRecentSearches } from "@/lib/recent-searches-context"
 import type { RecentSearch } from "@/lib/recent-searches-context"
@@ -22,14 +22,13 @@ import { useURLUpdater, useShare } from "@/lib/logbook/hooks"
 import { toast } from "sonner"
 import { saveCalculationToHistory, validateMultipleStops } from "@/lib/stripe/actions"
 import { saveRecentSearch } from "@/lib/recent-searches/actions"
-import { getDepot, saveDepot, type DepotData } from "@/lib/depot/actions"
+import type { Depot } from "@/lib/depot/actions"
 
 interface LogbookCheckerProps {
   isPro?: boolean
-  initialDepot?: DepotData | null
 }
 
-export default function LogbookChecker({ isPro = false, initialDepot = null }: LogbookCheckerProps) {
+export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
   const searchParams = useSearchParams()
   const [baseAddress, setBaseAddress] = useState("")
   const [baseLocation, setBaseLocation] = useState<GeocodeResult | null>(null)
@@ -40,11 +39,8 @@ export default function LogbookChecker({ isPro = false, initialDepot = null }: L
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<CalculationResult | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
-  const [useDepot, setUseDepot] = useState(false)
   const { updateURL} = useURLUpdater()
   const { handleShare: shareURL } = useShare()
-  
-  const hasDepot = initialDepot?.depot_address
 
   // Stop management functions
   const addStop = async () => {
@@ -60,25 +56,7 @@ export default function LogbookChecker({ isPro = false, initialDepot = null }: L
       address: "",
       location: null
     }
-    setStops((currentStops) => {
-      const newStops = [...currentStops, newStop]
-      
-      // If depot toggle is ON and we're going from 1 stop to 2+ stops,
-      // automatically fill the new (last) stop with depot
-      if (useDepot && initialDepot && currentStops.length === 1 && newStops.length === 2) {
-        setTimeout(() => {
-          updateStopAddress(newStop.id, initialDepot.depot_address || '')
-          updateStopLocation(newStop.id, {
-            lat: initialDepot.depot_lat || 0,
-            lng: initialDepot.depot_lng || 0,
-            placeName: initialDepot.depot_address || '',
-          })
-          toast.success('Depot applied to final destination!')
-        }, 0)
-      }
-      
-      return newStops
-    })
+    setStops([...stops, newStop])
   }
 
   const removeStop = (id: string) => {
@@ -398,6 +376,27 @@ export default function LogbookChecker({ isPro = false, initialDepot = null }: L
     }
   }
 
+  // Depot handlers - one for base, one for stops
+  const handleSelectDepotForBase = (depot: Depot) => {
+    setBaseAddress(depot.address)
+    setBaseLocation({
+      lat: depot.lat,
+      lng: depot.lng,
+      placeName: depot.address,
+    })
+    toast.success('Depot applied to base location')
+  }
+
+  const handleSelectDepotForStop = (stopId: string, depot: Depot) => {
+    updateStopAddress(stopId, depot.address)
+    updateStopLocation(stopId, {
+      lat: depot.lat,
+      lng: depot.lng,
+      placeName: depot.address,
+    })
+    toast.success('Depot applied to stop')
+  }
+
   const handleRecentSearchSelect = async (search: RecentSearch) => {
     // Populate fields from recent search
     setBaseAddress(search.baseLocation.placeName)
@@ -491,63 +490,8 @@ export default function LogbookChecker({ isPro = false, initialDepot = null }: L
                   placeholder="e.g., Sydney, NSW or enter an address"
                   location={baseLocation}
                   isPro={isPro}
-                  showSaveAsDepot={true}
-                  hasDepot={!!hasDepot}
-                  depotName={initialDepot?.depot_name || 'Depot'}
-                  useDepot={useDepot}
-                  onToggleDepot={(checked) => {
-                    setUseDepot(checked)
-                    if (checked && initialDepot) {
-                      // Fill in base location
-                      setBaseAddress(initialDepot.depot_address || '')
-                      setBaseLocation({
-                        lat: initialDepot.depot_lat || 0,
-                        lng: initialDepot.depot_lng || 0,
-                        placeName: initialDepot.depot_address || '',
-                      })
-                      
-                      // Only fill final destination as depot if there are 2+ stops
-                      // (meaning there are stops in between base and destination)
-                      if (stops.length > 1) {
-                        const lastStop = stops[stops.length - 1]
-                        updateStopAddress(lastStop.id, initialDepot.depot_address || '')
-                        updateStopLocation(lastStop.id, {
-                          lat: initialDepot.depot_lat || 0,
-                          lng: initialDepot.depot_lng || 0,
-                          placeName: initialDepot.depot_address || '',
-                        })
-                        toast.success('Depot applied to base & destination!')
-                      } else {
-                        toast.success('Depot applied to base location!')
-                      }
-                    } else {
-                      // Clear when toggled off
-                      setBaseAddress('')
-                      setBaseLocation(null)
-                      if (stops.length > 1) {
-                        const lastStop = stops[stops.length - 1]
-                        updateStopAddress(lastStop.id, '')
-                        updateStopLocation(lastStop.id, null)
-                      }
-                    }
-                  }}
-                  onSaveAsDepot={async (location) => {
-                    // Auto-name as "Depot 1" (they can edit in account settings)
-                    const result = await saveDepot({
-                      name: 'Depot 1',
-                      address: location.placeName,
-                      lat: location.lat,
-                      lng: location.lng,
-                    })
-                    
-                    if (result.success) {
-                      toast.success('Depot saved! Toggle it on to use.')
-                      // Refresh the page to show the depot toggle
-                      window.location.reload()
-                    } else {
-                      toast.error(result.error || 'Failed to save depot')
-                    }
-                  }}
+                  showDepotSelector={true}
+                  onSelectDepot={handleSelectDepotForBase}
                 />
 
                 {/* Divider */}
@@ -562,6 +506,7 @@ export default function LogbookChecker({ isPro = false, initialDepot = null }: L
                   onUpdateStopLocation={updateStopLocation}
                   onReorder={reorderStops}
                   isPro={isPro}
+                  onSelectDepot={handleSelectDepotForStop}
                 />
 
                 {/* Calculate Button */}
@@ -600,16 +545,11 @@ export default function LogbookChecker({ isPro = false, initialDepot = null }: L
             )}
 
                   {result && (
-                    <>
                       <ResultDisplay
                         result={result}
                         onShare={handleShare}
                         isPro={isPro}
                       />
-                
-                      {/* Pro Upgrade Banner - show after result for free users */}
-                      {!isPro && <ProUpgradeBanner variant="detailed" className="mt-6" />}
-              </>
             )}
           </div>
 
@@ -617,13 +557,16 @@ export default function LogbookChecker({ isPro = false, initialDepot = null }: L
                   {/* Recent Searches - Pro feature only */}
                   {isPro && <RecentSearchesPro onSelect={handleRecentSearchSelect} />}
                   
-                  {/* Pro Upgrade Banner - show for free users in sidebar */}
-                  {!isPro && <ProUpgradeBanner variant="compact" />}
-                  
+                  {/* Pro Upgrade Banner and Ad - show for free users in sidebar, sticky on desktop */}
+                  {!isPro && (
+                    <div className="lg:sticky lg:top-20 lg:z-10 space-y-4 sm:space-y-6">
+                      <ProUpgradeBanner variant="compact" />
                   {/* Ad placement in sidebar - only show for free users
                       SECURITY: isPro is validated server-side in page.tsx via getSubscriptionStatus()
                       User cannot bypass this check - it comes from database query in Server Component */}
-                  {!isPro && <ResponsiveAd adSlot="YOUR_AD_SLOT_2" />}
+                      <ResponsiveAd placementId={103} />
+                    </div>
+                  )}
                 </div>
         </div>
         </div>

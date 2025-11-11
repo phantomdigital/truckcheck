@@ -2,7 +2,7 @@
 
 import { useCheckout } from "@/lib/stripe/hooks"
 import { Button } from "@/components/ui/button"
-import { Sparkles } from "lucide-react"
+import { Sparkles, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 
@@ -38,7 +38,15 @@ export function UpgradeButton({
 
   const handleClick = () => {
     if (!isAuthenticated) {
-      router.push("/auth/login?redirect=/pricing")
+      // Redirect to sign-up with checkout intent - better UX for new users
+      const params = new URLSearchParams()
+      params.set("redirect", "/pricing")
+      params.set("checkout", "true")
+      params.set("plan", "Pro") // Pass plan name in URL for dynamic messaging
+      if (priceId) {
+        params.set("priceId", priceId)
+      }
+      router.push(`/auth/sign-up?${params.toString()}`)
       return
     }
     createCheckout(priceId)
@@ -48,12 +56,21 @@ export function UpgradeButton({
     <Button
       onClick={handleClick}
       disabled={loading}
-      className={className}
-      variant={variant}
+      className={`${className} !rounded-md`}
+      variant="cta"
       size={size}
     >
-      <Sparkles className="h-4 w-4 mr-2" />
-      {loading ? "Loading..." : "Upgrade to Pro"}
+      {loading ? (
+        <>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          Preparing checkout...
+        </>
+      ) : (
+        <>
+          <Sparkles className="h-4 w-4 mr-2" />
+          Upgrade to Pro
+        </>
+      )}
     </Button>
   )
 }

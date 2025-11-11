@@ -27,7 +27,7 @@ export function ProUpgradeBanner({ variant = "detailed", className = "" }: ProUp
                   Unlock powerful features to streamline your compliance workflow
                 </p>
               </div>
-              <Button asChild className="w-full" size="lg">
+              <Button asChild className="w-full !rounded-md" size="lg" variant="cta">
                 <Link href="/pricing" className="flex items-center">
                   <Sparkles className="mr-2 h-4 w-4" />
                   View Features
@@ -91,7 +91,7 @@ export function ProUpgradeBanner({ variant = "detailed", className = "" }: ProUp
         </ul>
 
         <div className="pt-2 space-y-2">
-          <Button asChild className="w-full" size="lg">
+          <Button asChild className="w-full !rounded-md" size="lg" variant="cta">
             <Link href="/pricing" className="flex items-center justify-center">
               <Sparkles className="mr-2 h-4 w-4" />
               View Pricing

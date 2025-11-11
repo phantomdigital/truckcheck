@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const session = await createCheckoutSession(
       user.id,
       user.email,
-      `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/account?success=true`,
+      `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/checkout/success`,
       `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/pricing?canceled=true`,
       priceId
     )

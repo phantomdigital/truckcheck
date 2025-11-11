@@ -2,9 +2,9 @@ import type { Metadata } from "next"
 import Script from "next/script"
 import { Suspense } from "react"
 import { getSubscriptionStatus } from "@/lib/stripe/actions"
-import { getDepot } from "@/lib/depot/actions"
 import LogbookChecker from "../logbook-checker"
 import { ResultSkeleton } from "@/components/logbook/result-skeleton"
+import { DepotProvider } from "@/lib/depot/depot-context"
 import { generatePageMetadata } from "@/lib/seo/config"
 import {
   getNHVRCalculatorSchema,
@@ -40,9 +40,6 @@ export const metadata: Metadata = generatePageMetadata({
 export default async function NHVRLogbookCheckerPage() {
   // Fetch subscription status at page level (server component)
   const { isPro } = await getSubscriptionStatus()
-  
-  // Fetch depot for Pro users
-  const depotResult = isPro ? await getDepot() : { data: null, error: null }
 
   // Generate structured data for this specific tool
   const structuredData = combineSchemas(
@@ -99,15 +96,17 @@ export default async function NHVRLogbookCheckerPage() {
         </div>
       </header>
 
-      <Suspense fallback={
-        <div className="w-full max-w-[100rem] mx-auto px-4 lg:px-8 py-6">
-          <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
-            <ResultSkeleton />
+      <DepotProvider>
+        <Suspense fallback={
+          <div className="w-full max-w-[100rem] mx-auto px-4 lg:px-8 py-6">
+            <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+              <ResultSkeleton />
+            </div>
           </div>
-        </div>
-      }>
-        <LogbookChecker isPro={isPro} initialDepot={depotResult.data} />
-      </Suspense>
+        }>
+          <LogbookChecker isPro={isPro} />
+        </Suspense>
+      </DepotProvider>
     </>
   )
 }

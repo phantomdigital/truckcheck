@@ -17,8 +17,22 @@ export async function GET(request: NextRequest) {
       token_hash,
     })
     if (!error) {
-      // redirect user to specified redirect URL or root of app
-      redirect(next)
+      // Check if there's a checkout intent from sign-up
+      // If user came from email confirmation and has checkout intent, redirect to pricing
+      const checkoutIntent = searchParams.get("checkout")
+      const priceId = searchParams.get("priceId")
+      
+      if (checkoutIntent === "true" || next.includes("checkout=true")) {
+        // Redirect to checkout verification route which handles auth verification and checkout
+        const params = new URLSearchParams()
+        if (priceId) {
+          params.set("priceId", priceId)
+        }
+        redirect(`/checkout/verify?${params.toString()}`)
+      } else {
+        // redirect user to specified redirect URL or root of app
+        redirect(next)
+      }
     } else {
       // redirect the user to an error page with some instructions
       redirect(`/auth/error?error=${error?.message}`)

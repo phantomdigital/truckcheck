@@ -544,13 +544,13 @@ export const PrintResult = forwardRef<HTMLDivElement, PrintResultProps>(
                   : "bg-gray-50 border-gray-300"
               }`}>
                 <div className="text-sm text-gray-600 mb-1 font-medium">
-                  Max Distance from Base
+                  Furthest Point from Base
                 </div>
                 <div className="text-3xl font-bold text-gray-900">
                   {result.maxDistanceFromBase.toFixed(1)} km
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Along driving route
+                  How far you travel from base
                 </div>
               </div>
             )}
@@ -563,7 +563,7 @@ export const PrintResult = forwardRef<HTMLDivElement, PrintResultProps>(
                   {result.drivingDistance.toFixed(1)} km
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Actual route distance
+                  Total km you'll drive on this trip
                 </div>
               </div>
             )}
@@ -574,17 +574,16 @@ export const PrintResult = forwardRef<HTMLDivElement, PrintResultProps>(
         {result.maxDistanceFromBase !== null && 
          result.maxDistanceFromBase > result.distance + 5 && (
           <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 rounded no-break">
-            <h4 className="font-semibold text-amber-900 mb-2">Important Notice</h4>
+            <h4 className="font-semibold text-amber-900 mb-2">Important: Destination vs Route Distance</h4>
             <p className="text-sm text-amber-800 leading-relaxed">
-              While your destination is {result.distance.toFixed(1)} km from base, your driving
-              route takes you up to {result.maxDistanceFromBase.toFixed(1)} km away from base
-              (a difference of {(result.maxDistanceFromBase - result.distance).toFixed(1)} km).
-              NHVR regulations are based on the maximum distance from your base during the journey.
+              <strong>Your destination is {result.distance.toFixed(1)} km away</strong> (straight line), 
+              but to get there <strong>you'll travel {result.maxDistanceFromBase.toFixed(1)} km from base</strong> along the actual driving route 
+              (a difference of {(result.maxDistanceFromBase - result.distance).toFixed(1)} km). 
+              NHVR regulations are based on how far you travel from base, not just where your destination is.
             </p>
             {result.maxDistanceFromBase > 100 && result.distance <= 100 && (
               <p className="text-sm font-semibold text-amber-900 mt-2 leading-relaxed">
-                Even though your destination is within 100km, you exceed the 100km radius along
-                your route, so a logbook IS required.
+                Important: Even though your destination is within 100km, the route takes you beyond the 100km radius, so a logbook IS required.
               </p>
             )}
           </div>

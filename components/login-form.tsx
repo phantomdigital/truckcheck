@@ -13,8 +13,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
+import { Loader2 } from "lucide-react"
 
 export function LoginForm({
   className,
@@ -25,6 +26,11 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get("redirect") || "/"
+  const shouldCheckout = searchParams.get("checkout") === "true"
+  const priceId = searchParams.get("priceId") || undefined
+  const planName = searchParams.get("plan") || searchParams.get("product") || null
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,12 +44,25 @@ export function LoginForm({
         password,
       })
       if (error) throw error
-      // Redirect to home page after successful login
-      router.push("/")
-      router.refresh()
+      
+      // If checkout intent, redirect to checkout verification route
+      // Keep loading state active during navigation
+      if (shouldCheckout) {
+        const params = new URLSearchParams()
+        if (priceId) {
+          params.set("priceId", priceId)
+        }
+        router.push(`/checkout/verify?${params.toString()}`)
+        // Don't set loading to false - let the navigation complete
+        return
+      } else {
+        // Redirect to intended page or home after successful login
+        router.push(redirectTo)
+        router.refresh()
+        return
+      }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
-    } finally {
       setIsLoading(false)
     }
   }
@@ -51,10 +70,18 @@ export function LoginForm({
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
-            Enter your email below to login to your account
+        <CardHeader className="space-y-3">
+          <CardTitle className="text-3xl gradient-text">
+            {shouldCheckout 
+              ? planName
+                ? `Login to unlock ${planName}`
+                : "Login to unlock Pro"
+              : "Login"}
+          </CardTitle>
+          <CardDescription className="text-base">
+            {shouldCheckout
+              ? "Enter your email below to login and continue to checkout. The free tool works without sign-up, but Pro features require an account."
+              : "Enter your email below to login to your account"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -90,18 +117,39 @@ export function LoginForm({
                 />
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Logging in..." : "Login"}
+              <Button type="submit" variant="cta" className="w-full !rounded-md" disabled={isLoading}>
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>{shouldCheckout ? "Preparing checkout..." : "Logging in..."}</span>
+                  </div>
+                ) : (
+                  shouldCheckout ? "Continue to checkout" : "Login"
+                )}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/auth/sign-up"
-                className="underline underline-offset-4"
-              >
-                Sign up
-              </Link>
+              {shouldCheckout ? (
+                <>
+                  Don&apos;t have an account?{" "}
+                  <Link
+                    href={`/auth/sign-up?redirect=/pricing&checkout=true${planName ? `&plan=${encodeURIComponent(planName)}` : ''}${searchParams.get("priceId") ? `&priceId=${searchParams.get("priceId")}` : ''}`}
+                    className="underline underline-offset-4"
+                  >
+                    Sign up to upgrade
+                  </Link>
+                </>
+              ) : (
+                <>
+                  Don&apos;t have an account?{" "}
+                  <Link
+                    href="/auth/sign-up"
+                    className="underline underline-offset-4"
+                  >
+                    Sign up
+                  </Link>
+                </>
+              )}
             </div>
           </form>
         </CardContent>

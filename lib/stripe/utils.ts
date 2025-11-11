@@ -10,7 +10,7 @@ export async function getOrCreateStripeCustomer(userId: string, email: string) {
   // Check if user already has a Stripe customer ID
   const { data: user } = await supabase
     .from("users")
-    .select("stripe_customer_id")
+    .select("stripe_customer_id, first_name, last_name")
     .eq("id", userId)
     .single()
 
@@ -22,13 +22,20 @@ export async function getOrCreateStripeCustomer(userId: string, email: string) {
     }
   }
 
-  // Create new Stripe customer
-  const customer = await stripe.customers.create({
+  // Create new Stripe customer with name from database
+  const customerData: any = {
     email,
     metadata: {
       userId,
     },
-  })
+  }
+
+  // Add name if available
+  if (user?.first_name || user?.last_name) {
+    customerData.name = `${user.first_name || ''} ${user.last_name || ''}`.trim()
+  }
+
+  const customer = await stripe.customers.create(customerData)
 
   // Update user with Stripe customer ID
   await supabase

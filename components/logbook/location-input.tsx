@@ -1,10 +1,10 @@
 "use client"
 
 import { AddressAutocomplete } from "@/components/address-autocomplete"
-import { MapPin, Building2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
+import { MapPin } from "lucide-react"
+import { DepotSelector } from "@/components/logbook/depot-selector"
 import type { GeocodeResult } from "@/lib/logbook/types"
+import type { Depot } from "@/lib/depot/actions"
 
 interface LocationInputProps {
   id: string
@@ -15,12 +15,8 @@ interface LocationInputProps {
   placeholder?: string
   location: GeocodeResult | null
   isPro?: boolean
-  onSaveAsDepot?: (location: GeocodeResult) => void
-  showSaveAsDepot?: boolean
-  hasDepot?: boolean
-  depotName?: string
-  useDepot?: boolean
-  onToggleDepot?: (checked: boolean) => void
+  showDepotSelector?: boolean
+  onSelectDepot?: (depot: Depot) => void
 }
 
 export function LocationInput({
@@ -32,12 +28,8 @@ export function LocationInput({
   placeholder,
   location,
   isPro = false,
-  onSaveAsDepot,
-  showSaveAsDepot = false,
-  hasDepot = false,
-  depotName = 'Depot',
-  useDepot = false,
-  onToggleDepot,
+  showDepotSelector = false,
+  onSelectDepot,
 }: LocationInputProps) {
   return (
     <div className="space-y-2">
@@ -48,33 +40,13 @@ export function LocationInput({
             {label}
           </label>
         </div>
-        <div className="flex items-center gap-3">
-          {isPro && hasDepot && onToggleDepot && (
-            <div className="flex items-center gap-2">
-              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-              <label htmlFor="use-depot-toggle" className="text-xs text-muted-foreground">
-                Use {depotName}
-              </label>
-              <Switch
-                id="use-depot-toggle"
-                checked={useDepot}
-                onCheckedChange={onToggleDepot}
-                className="scale-75"
-              />
-            </div>
-          )}
-          {isPro && showSaveAsDepot && location && onSaveAsDepot && !hasDepot && (
-            <button
-              onClick={() => onSaveAsDepot(location)}
-              className="group inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-            >
-              <Building2 className="h-3.5 w-3.5" />
-              <span className="underline decoration-primary/30 decoration-2 underline-offset-4 group-hover:decoration-primary/60">
-                Set as Depot
-              </span>
-            </button>
-          )}
-        </div>
+        {isPro && showDepotSelector && onSelectDepot && (
+          <DepotSelector 
+            onSelectDepot={onSelectDepot}
+            location={location}
+            showSaveButton={!!location}
+          />
+        )}
       </div>
       <AddressAutocomplete
         id={id}

@@ -6,6 +6,7 @@ import { RecentSearchesProvider } from "@/lib/recent-searches-context"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Toaster } from "@/components/ui/sonner"
+import { EzoicRouteRefresh } from "@/components/ezoic"
 import { defaultMetadata } from "@/lib/seo/config"
 import { getOrganisationSchema, getWebSiteSchema, combineSchemas } from "@/lib/seo/structured-data"
 
@@ -50,6 +51,35 @@ export default function RootLayout({
         {/* Web App Manifest */}
         <link rel="manifest" href="/site.webmanifest" />
         
+        {/* Ezoic Privacy Scripts - Must be loaded FIRST before header script */}
+        <Script
+          src="https://cmp.gatekeeperconsent.com/min.js"
+          data-cfasync="false"
+          strategy="beforeInteractive"
+        />
+        <Script
+          src="https://the.gatekeeperconsent.com/cmp.min.js"
+          data-cfasync="false"
+          strategy="beforeInteractive"
+        />
+
+        {/* Ezoic Header Script - Initializes the ad system */}
+        <Script
+          async
+          src="https://www.ezojs.com/ezoic/sa.min.js"
+          strategy="beforeInteractive"
+        />
+        <Script
+          id="ezoic-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.ezstandalone = window.ezstandalone || {};
+              ezstandalone.cmd = ezstandalone.cmd || [];
+            `
+          }}
+        />
+        
         {/* Structured Data (JSON-LD) */}
         <Script
           id="structured-data"
@@ -57,32 +87,13 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
 
-        {/* Google AdSense */}
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1329430506815367"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
 
-        {/* Google Analytics - Uncomment and add your GA4 ID when ready */}
-        {/* <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX`}
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-XXXXXXXXXX');
-          `}
-        </Script> */}
       </head>
       <body
         className={`${outfit.variable} antialiased flex flex-col min-h-screen font-sans`}
       >
         <RecentSearchesProvider>
+          <EzoicRouteRefresh />
           <Header />
           <main className="flex-1">
             {children}

@@ -7,20 +7,22 @@ import { AuthButton } from "./auth-button"
 export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-      <div className="w-full max-w-[100rem] mx-auto px-4 lg:px-8">
-        <div className="flex h-14 items-center justify-between">
-          <Link href="/" className="hover:opacity-80 transition-opacity">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-4">
+          <Link href="/" className="hover:opacity-80 transition-opacity shrink-0">
             <Image
               src="/logo.png"
               alt="TruckCheck"
-              width={120}
-              height={32}
-              className="object-contain h-8"
+              width={140}
+              height={36}
+              className="object-contain h-9"
+              priority
             />
           </Link>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
             <Navigation />
+            <div className="hidden md:block h-6 w-px bg-border"></div>
             <AuthButton />
           </div>
         </div>

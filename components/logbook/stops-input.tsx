@@ -18,8 +18,10 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import { Button } from "@/components/ui/button"
 import { AddressAutocomplete } from "@/components/address-autocomplete"
+import { DepotSelector } from "@/components/logbook/depot-selector"
 import { Plus, X, Navigation, MapPin, GripVertical, Lock } from "lucide-react"
 import type { Stop, GeocodeResult } from "@/lib/logbook/types"
+import type { Depot } from "@/lib/depot/actions"
 
 interface StopsInputProps {
   stops: Stop[]
@@ -29,6 +31,7 @@ interface StopsInputProps {
   onUpdateStopLocation: (id: string, location: GeocodeResult) => void
   onReorder: (startIndex: number, endIndex: number) => void
   isPro?: boolean
+  onSelectDepot?: (stopId: string, depot: Depot) => void
 }
 
 interface SortableStopItemProps {
@@ -38,6 +41,8 @@ interface SortableStopItemProps {
   onRemoveStop: (id: string) => void
   onUpdateStopAddress: (id: string, address: string) => void
   onUpdateStopLocation: (id: string, location: GeocodeResult) => void
+  isPro?: boolean
+  onSelectDepot?: (stopId: string, depot: Depot) => void
 }
 
 function SortableStopItem({
@@ -47,6 +52,8 @@ function SortableStopItem({
   onRemoveStop,
   onUpdateStopAddress,
   onUpdateStopLocation,
+  isPro = false,
+  onSelectDepot,
 }: SortableStopItemProps) {
   const {
     attributes,
@@ -103,18 +110,27 @@ function SortableStopItem({
                 </span>
               )}
             </div>
-            {totalStops > 1 && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => onRemoveStop(stop.id)}
-                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                title="Remove stop"
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {isPro && onSelectDepot && (
+                <DepotSelector
+                  onSelectDepot={(depot) => onSelectDepot(stop.id, depot)}
+                  location={stop.location}
+                  showSaveButton={!!stop.location}
+                />
+              )}
+              {totalStops > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onRemoveStop(stop.id)}
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  title="Remove stop"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
           </div>
           <AddressAutocomplete
             id={`stop-${stop.id}`}
@@ -153,6 +169,7 @@ export function StopsInput({
   onUpdateStopLocation,
   onReorder,
   isPro = false,
+  onSelectDepot,
 }: StopsInputProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -177,7 +194,7 @@ export function StopsInput({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between lg:sticky lg:top-20 lg:z-10 lg:bg-card lg:py-2 lg:-mx-6 lg:px-6 lg:border-b lg:border-border/50 lg:mb-4">
         <div className="flex items-center gap-2">
           <Navigation className="h-4 w-4 text-muted-foreground" />
           <label className="text-sm font-semibold">
@@ -232,6 +249,8 @@ export function StopsInput({
                 onRemoveStop={onRemoveStop}
                 onUpdateStopAddress={onUpdateStopAddress}
                 onUpdateStopLocation={onUpdateStopLocation}
+                isPro={isPro}
+                onSelectDepot={onSelectDepot}
               />
             ))}
           </div>

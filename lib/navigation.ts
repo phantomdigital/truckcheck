@@ -21,6 +21,16 @@ export const navigationItems: NavItem[] = [
     href: "/pricing",
     description: "View our subscription plans and features",
   },
+  {
+    title: "Blogs",
+    href: "/blog",
+    description: "Learn more about TruckCheck",
+  },
+  {
+    title: "Resources",
+    href: "/resources",
+    description: "Learn more about TruckCheck",
+  },
 ]
 
 // Helper to get the current active route

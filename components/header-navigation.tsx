@@ -9,7 +9,7 @@ export function Navigation() {
   const pathname = usePathname()
 
   return (
-    <nav className="hidden md:flex items-center gap-6">
+    <nav className="hidden md:flex items-center gap-8">
       {navigationItems.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
         
@@ -18,9 +18,9 @@ export function Navigation() {
             key={item.href}
             href={item.href}
             className={cn(
-              "text-sm font-medium transition-colors hover:text-foreground",
+              "text-sm font-medium transition-colors hover:text-foreground relative py-1",
               isActive
-                ? "text-foreground"
+                ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-foreground after:rounded-full"
                 : "text-muted-foreground"
             )}
           >

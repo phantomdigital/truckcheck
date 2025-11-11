@@ -5,8 +5,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { DistanceMap } from "@/components/distance-map"
 import { Share2, Route, Navigation, BookCheck, BookX, CircleCheck, CircleX, AlertTriangle } from "lucide-react"
-import { ExportResult } from "@/components/logbook/export-result"
-import { ResponsiveAd } from "@/components/adsense"
+import { ExportModal } from "@/components/logbook/export-modal"
+import { ResponsiveAd } from "@/components/ezoic"
 import type { CalculationResult } from "@/lib/logbook/types"
 
 interface ResultDisplayProps {
@@ -22,7 +22,7 @@ export function ResultDisplay({ result, onShare, isPro = false }: ResultDisplayP
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-semibold tracking-tight">Result</CardTitle>
           <div className="flex gap-2">
-            <ExportResult result={result} isPro={isPro} />
+            <ExportModal result={result} isPro={isPro} />
             <Button
               variant="outline"
               size="sm"
@@ -166,7 +166,7 @@ export function ResultDisplay({ result, onShare, isPro = false }: ResultDisplayP
           })()}
 
           {/* Ad placement before map - only show for free users */}
-          {!isPro && <ResponsiveAd adSlot="YOUR_AD_SLOT_MAP" />}
+          {!isPro && <ResponsiveAd placementId={102} />}
 
           {/* Route Visualisation - Map */}
           <div className="space-y-3">
@@ -209,10 +209,10 @@ export function ResultDisplay({ result, onShare, isPro = false }: ResultDisplayP
               <div className={`text-center space-y-2 p-4 border border-border/50 rounded-lg ${
                 result.maxDistanceFromBase > 100 ? 'border-amber-500/50 bg-amber-50 dark:bg-amber-950/20' : ''
               }`}>
-                <div className="text-sm text-muted-foreground">Max Distance from Base</div>
+                <div className="text-sm text-muted-foreground">Furthest Point from Base</div>
                 <div className="text-xl sm:text-2xl font-bold gradient-text">{result.maxDistanceFromBase.toFixed(1)} km</div>
                 <div className="text-xs text-muted-foreground">
-                  (along driving route)
+                  How far you travel from base
                 </div>
               </div>
             )}
@@ -222,7 +222,7 @@ export function ResultDisplay({ result, onShare, isPro = false }: ResultDisplayP
                 <div className="text-sm text-muted-foreground">Total Driving Distance</div>
                 <div className="text-xl sm:text-2xl font-bold gradient-text">{result.drivingDistance.toFixed(1)} km</div>
                 <div className="text-xs text-muted-foreground">
-                  (actual route distance)
+                  Total km you'll drive on this trip
                 </div>
               </div>
             )}
@@ -233,17 +233,17 @@ export function ResultDisplay({ result, onShare, isPro = false }: ResultDisplayP
            result.maxDistanceFromBase > result.distance + 5 && (
             <Alert>
               <AlertTitle className="text-sm">
-                Route Distance Notice
+                Important: Destination vs Route Distance
               </AlertTitle>
               <AlertDescription className="text-xs">
-                While your destination is {result.distance.toFixed(1)} km from base, 
-                your driving route takes you up to {result.maxDistanceFromBase.toFixed(1)} km away from base 
+                <strong>Your destination is {result.distance.toFixed(1)} km away</strong> (straight line), 
+                but to get there <strong>you&apos;ll travel {result.maxDistanceFromBase.toFixed(1)} km from base</strong> along the actual driving route 
                 (a difference of {(result.maxDistanceFromBase - result.distance).toFixed(1)} km). 
-                NHVR regulations are based on the maximum distance from your base during the journey.
+                NHVR regulations are based on how far you travel from base, not just where your destination is.
                 {result.maxDistanceFromBase > 100 && result.distance <= 100 && (
                   <span className="block mt-2 font-medium text-amber-600 dark:text-amber-400">
-                    ⚠️ Important: Even though your destination is within 100km, 
-                    you exceed the 100km radius along your route, so a logbook IS required.
+                    Important: Even though your destination is within 100km, 
+                    the route takes you beyond the 100km radius, so a logbook IS required.
                   </span>
                 )}
               </AlertDescription>

@@ -9,7 +9,12 @@ import { Building2, Trash2, Save, MapPin } from "lucide-react"
 import { toast } from "sonner"
 import { saveDepot, clearDepot, type DepotData } from "@/lib/depot/actions"
 import { AddressAutocomplete } from "./address-autocomplete"
-import type { GeocodeResult } from "@/lib/mapbox/types"
+
+interface AddressSuggestion {
+  placeName: string
+  lat: number
+  lng: number
+}
 
 interface DepotSettingsProps {
   initialDepot: DepotData | null
@@ -26,12 +31,12 @@ export function DepotSettings({ initialDepot }: DepotSettingsProps) {
 
   const hasDepot = initialDepot?.depot_address
 
-  const handleAddressSelect = (result: GeocodeResult) => {
+  const handleAddressSelect = (result: AddressSuggestion) => {
     setDepot({
       ...depot,
-      address: result.place_name,
-      lat: result.center[1],
-      lng: result.center[0],
+      address: result.placeName,
+      lat: result.lat,
+      lng: result.lng,
     })
   }
 
@@ -104,6 +109,7 @@ export function DepotSettings({ initialDepot }: DepotSettingsProps) {
           <Label htmlFor="depot-address">Depot Address</Label>
           <AddressAutocomplete
             value={depot.address}
+            onChange={(value) => setDepot({ ...depot, address: value })}
             onSelect={handleAddressSelect}
             placeholder="Search for your depot address..."
             id="depot-address"

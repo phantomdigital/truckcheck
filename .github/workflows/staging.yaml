@@ -19,7 +19,24 @@ jobs:
 
       - name: Link to Supabase project
         run: |
-          supabase link --project-ref $PROJECT_ID --password $SUPABASE_DB_PASSWORD
+          # Retry logic for connection issues
+          max_attempts=3
+          attempt=1
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt of $max_attempts to link Supabase project..."
+            if supabase link --project-ref $PROJECT_ID --password $SUPABASE_DB_PASSWORD; then
+              echo "Successfully linked to Supabase project"
+              exit 0
+            else
+              if [ $attempt -lt $max_attempts ]; then
+                echo "Link failed, retrying in 10 seconds..."
+                sleep 10
+              fi
+              attempt=$((attempt + 1))
+            fi
+          done
+          echo "Failed to link after $max_attempts attempts"
+          exit 1
         env:
           PROJECT_ID: ${{ secrets.STAGING_PROJECT_ID }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

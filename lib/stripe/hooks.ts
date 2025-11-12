@@ -73,8 +73,13 @@ export function useCheckout() {
           price_id: priceId,
           user_id: user?.id,
         })
+        // Redirect to Stripe - don't reset loading, page will navigate away
         window.location.href = url
+        return
       }
+      
+      // If no URL returned, treat as error
+      throw new Error("No checkout URL returned")
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error))
       console.error("Error creating checkout:", error)
@@ -83,7 +88,7 @@ export function useCheckout() {
         priceId,
       })
       toast.error("Failed to start checkout. Please try again.")
-    } finally {
+      // Only reset loading on error (not on redirects)
       setLoading(false)
     }
   }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import { captureEvent } from "@/lib/posthog/utils"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ import { StopsInput } from "@/components/logbook/stops-input"
 import { ResultDisplay } from "@/components/logbook/result-display"
 import { ResultSkeleton } from "@/components/logbook/result-skeleton"
 import { CSVImportModal } from "@/components/logbook/csv-import-modal"
-import { RecentSearchesPro } from "@/components/recent-searches-pro"
+import { RecentSearchesPro, type RecentSearchesProRef } from "@/components/recent-searches-pro"
 import { ResponsiveAd } from "@/components/ezoic"
 import { ProUpgradeBanner } from "@/components/pro-upgrade-banner"
 import { useRecentSearches } from "@/lib/recent-searches-context"
@@ -31,6 +31,7 @@ interface LogbookCheckerProps {
 
 export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
   const searchParams = useSearchParams()
+  const recentSearchesRef = useRef<RecentSearchesProRef>(null)
   const [baseAddress, setBaseAddress] = useState("")
   const [baseLocation, setBaseLocation] = useState<GeocodeResult | null>(null)
   const [stops, setStops] = useState<Stop[]>([
@@ -375,6 +376,8 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
             distance,
             logbookRequired,
           })
+          // Refresh recent searches list after saving
+          recentSearchesRef.current?.refresh()
         } catch (error) {
           // Silently fail - recent search saving shouldn't block the UI
           console.error("Failed to save recent search:", error)
@@ -566,7 +569,7 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
 
                 <div className="lg:col-span-1 space-y-4 sm:space-y-6">
                   {/* Recent Searches - Pro feature only */}
-                  {isPro && <RecentSearchesPro onSelect={handleRecentSearchSelect} />}
+                  {isPro && <RecentSearchesPro ref={recentSearchesRef} onSelect={handleRecentSearchSelect} />}
                   
                   {/* Pro Upgrade Banner and Ad - show for free users in sidebar, sticky on desktop */}
                   {!isPro && (

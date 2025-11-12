@@ -8,6 +8,16 @@ export async function GET(request: NextRequest) {
   const token_hash = searchParams.get("token_hash")
   const type = searchParams.get("type") as EmailOtpType | null
   const next = searchParams.get("next") ?? "/"
+  
+  // Log for debugging
+  console.log("[Auth Confirm] Params:", {
+    token_hash: token_hash ? "present" : "missing",
+    type,
+    next,
+    checkout: searchParams.get("checkout"),
+    priceId: searchParams.get("priceId"),
+    allParams: Object.fromEntries(searchParams.entries())
+  })
 
   if (token_hash && type) {
     const supabase = await createClient()
@@ -16,13 +26,16 @@ export async function GET(request: NextRequest) {
       type,
       token_hash,
     })
+    
     if (!error) {
+      console.log("[Auth Confirm] Email verified successfully")
+      
       // Check if there's a checkout intent from sign-up
-      // If user came from email confirmation and has checkout intent, redirect to pricing
       const checkoutIntent = searchParams.get("checkout")
       const priceId = searchParams.get("priceId")
       
       if (checkoutIntent === "true" || next.includes("checkout=true")) {
+        console.log("[Auth Confirm] Redirecting to checkout")
         // Redirect to checkout verification route which handles auth verification and checkout
         const params = new URLSearchParams()
         if (priceId) {
@@ -30,16 +43,19 @@ export async function GET(request: NextRequest) {
         }
         redirect(`/checkout/verify?${params.toString()}`)
       } else {
+        console.log("[Auth Confirm] Redirecting to:", next)
         // redirect user to specified redirect URL or root of app
         redirect(next)
       }
     } else {
+      console.error("[Auth Confirm] Verification error:", error)
       // redirect the user to an error page with some instructions
-      redirect(`/auth/error?error=${error?.message}`)
+      redirect(`/auth/error?error=${encodeURIComponent(error?.message || "Verification failed")}`)
     }
   }
 
+  console.error("[Auth Confirm] Missing token_hash or type")
   // redirect the user to an error page with some instructions
-  redirect(`/auth/error?error=No token hash or type`)
+  redirect(`/auth/error?error=Invalid confirmation link. Please request a new confirmation email.`)
 }
 

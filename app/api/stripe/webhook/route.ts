@@ -6,6 +6,34 @@ import Stripe from "stripe"
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
+// Type extensions for Stripe objects that have properties not in TypeScript definitions
+// These properties exist at runtime but may not be in the type definitions
+type SubscriptionWithPeriodEnd = Stripe.Subscription & {
+  current_period_end: number
+}
+
+type InvoiceWithSubscription = Stripe.Invoice & {
+  subscription: string | Stripe.Subscription | null
+}
+
+// Helper to safely get subscription period end
+function getSubscriptionPeriodEnd(subscription: Stripe.Subscription): number | null {
+  const sub = subscription as SubscriptionWithPeriodEnd
+  return sub.current_period_end ?? null
+}
+
+// Helper to safely get invoice subscription ID
+function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const inv = invoice as InvoiceWithSubscription
+  if (typeof inv.subscription === 'string') {
+    return inv.subscription
+  }
+  if (inv.subscription && typeof inv.subscription === 'object' && 'id' in inv.subscription) {
+    return inv.subscription.id
+  }
+  return null
+}
+
 export async function POST(req: Request) {
   console.log("[Webhook] Received webhook request")
   
@@ -60,22 +88,23 @@ export async function POST(req: Request) {
             ? session.subscription 
             : session.subscription.id
           console.log("[Webhook] Retrieving subscription:", subscriptionId)
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId) as unknown as Stripe.Subscription
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId)
           
           const userId = session.metadata?.userId || subscription.metadata?.userId
+          const periodEnd = getSubscriptionPeriodEnd(subscription)
           console.log("[Webhook] UserId from metadata:", userId)
           console.log("[Webhook] Session metadata:", JSON.stringify(session.metadata))
           console.log("[Webhook] Subscription metadata:", JSON.stringify(subscription.metadata))
           console.log("[Webhook] Subscription status:", subscription.status)
-          console.log("[Webhook] Current period end:", (subscription as any).current_period_end)
+          console.log("[Webhook] Current period end:", periodEnd)
           
-          if (userId && (subscription as any).current_period_end) {
+          if (userId && periodEnd) {
             console.log("[Webhook] Attempting to update user:", userId)
             const updateData = {
-              subscription_status: "pro",
+              subscription_status: "pro" as const,
               stripe_subscription_id: subscription.id,
               subscription_current_period_end: new Date(
-                (subscription as any).current_period_end * 1000
+                periodEnd * 1000
               ).toISOString(),
             }
             console.log("[Webhook] Update data:", JSON.stringify(updateData))
@@ -105,15 +134,16 @@ export async function POST(req: Request) {
         const subscription = event.data.object as Stripe.Subscription
         
         const userId = subscription.metadata?.userId
+        const periodEnd = getSubscriptionPeriodEnd(subscription)
         
-        if (userId && (subscription as any).current_period_end) {
+        if (userId && periodEnd) {
           if (subscription.status === "active") {
             await supabase
               .from("users")
               .update({
-                subscription_status: "pro",
+                subscription_status: "pro" as const,
                 subscription_current_period_end: new Date(
-                  (subscription as any).current_period_end * 1000
+                  periodEnd * 1000
                 ).toISOString(),
               })
               .eq("id", userId)
@@ -121,9 +151,9 @@ export async function POST(req: Request) {
             await supabase
               .from("users")
               .update({
-                subscription_status: "cancelled",
+                subscription_status: "cancelled" as const,
                 subscription_current_period_end: new Date(
-                  (subscription as any).current_period_end * 1000
+                  periodEnd * 1000
                 ).toISOString(),
               })
               .eq("id", userId)
@@ -134,7 +164,7 @@ export async function POST(req: Request) {
             await supabase
               .from("users")
               .update({
-                subscription_status: "past_due",
+                subscription_status: "past_due" as const,
               })
               .eq("id", userId)
           }
@@ -144,23 +174,21 @@ export async function POST(req: Request) {
 
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice
-        const invoiceSubscription = (invoice as any).subscription
+        const invoiceSubscriptionId = getInvoiceSubscriptionId(invoice)
         
-        if (invoiceSubscription) {
-          const subscriptionId = typeof invoiceSubscription === 'string'
-            ? invoiceSubscription
-            : invoiceSubscription.id
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId) as unknown as Stripe.Subscription
+        if (invoiceSubscriptionId) {
+          const subscription = await stripe.subscriptions.retrieve(invoiceSubscriptionId)
           
           const userId = subscription.metadata?.userId
+          const periodEnd = getSubscriptionPeriodEnd(subscription)
           
-          if (userId && subscription.status === "active" && (subscription as any).current_period_end) {
+          if (userId && subscription.status === "active" && periodEnd) {
             await supabase
               .from("users")
               .update({
-                subscription_status: "pro",
+                subscription_status: "pro" as const,
                 subscription_current_period_end: new Date(
-                  (subscription as any).current_period_end * 1000
+                  periodEnd * 1000
                 ).toISOString(),
               })
               .eq("id", userId)
@@ -171,13 +199,10 @@ export async function POST(req: Request) {
 
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice
-        const invoiceSubscription = (invoice as any).subscription
+        const invoiceSubscriptionId = getInvoiceSubscriptionId(invoice)
         
-        if (invoiceSubscription) {
-          const subscriptionId = typeof invoiceSubscription === 'string'
-            ? invoiceSubscription
-            : invoiceSubscription.id
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId) as unknown as Stripe.Subscription
+        if (invoiceSubscriptionId) {
+          const subscription = await stripe.subscriptions.retrieve(invoiceSubscriptionId)
           
           const userId = subscription.metadata?.userId
           
@@ -185,7 +210,7 @@ export async function POST(req: Request) {
             await supabase
               .from("users")
               .update({
-                subscription_status: "past_due",
+                subscription_status: "past_due" as const,
               })
               .eq("id", userId)
           }

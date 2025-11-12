@@ -28,7 +28,7 @@ export function ProUpgradeBanner({ variant = "detailed", className = "" }: ProUp
                 </p>
               </div>
               <Button asChild className="w-full !rounded-md" size="lg" variant="cta">
-                <Link href="/pricing" className="flex items-center">
+                <Link href="/pricing" prefetch={true} className="flex items-center">
                   <Sparkles className="mr-2 h-4 w-4" />
                   View Features
                 </Link>
@@ -92,7 +92,7 @@ export function ProUpgradeBanner({ variant = "detailed", className = "" }: ProUp
 
         <div className="pt-2 space-y-2">
           <Button asChild className="w-full !rounded-md" size="lg" variant="cta">
-            <Link href="/pricing" className="flex items-center justify-center">
+            <Link href="/pricing" prefetch={true} className="flex items-center justify-center">
               <Sparkles className="mr-2 h-4 w-4" />
               View Pricing
             </Link>

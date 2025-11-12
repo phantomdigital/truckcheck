@@ -96,7 +96,7 @@ export function AccountPopover({ user, isPro, subscriptionEndDate }: AccountPopo
                 Unlock all features including CSV import, PDF export, and calculation history.
               </p>
               <Button asChild size="sm" className="w-full mt-1" onClick={() => setOpen(false)}>
-                <Link href="/pricing" className="inline-flex items-center justify-center">View Plans</Link>
+                <Link href="/pricing" prefetch={true} className="inline-flex items-center justify-center">View Plans</Link>
               </Button>
             </div>
           )}

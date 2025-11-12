@@ -78,7 +78,7 @@ export function UpgradePrompt({ className }: { className?: string }) {
             {loading ? "Loading..." : "Upgrade to Pro - $18/month"}
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/pricing">View Pricing</Link>
+            <Link href="/pricing" prefetch={true}>View Pricing</Link>
           </Button>
         </div>
       </div>

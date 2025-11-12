@@ -88,15 +88,22 @@ export async function sendLogbookEmail({
     // If mapImageUrl is a base64 data URL, upload it to Supabase Storage first
     let finalMapImageUrl = mapImageUrl
     if (mapImageUrl && mapImageUrl.startsWith('data:image/')) {
+      console.log('Uploading map image to Supabase Storage for user:', user.id)
       const uploadedUrl = await uploadMapImage(mapImageUrl, user.id)
       if (uploadedUrl) {
         // Proxy the Supabase URL through our domain
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://staging.truckcheck.com.au'
         finalMapImageUrl = `${siteUrl}/api/proxy-map-image?url=${encodeURIComponent(uploadedUrl)}`
+        console.log('Map image URL generated:', { 
+          originalSignedUrl: uploadedUrl,
+          proxiedUrl: finalMapImageUrl 
+        })
       } else {
         console.error('Failed to upload map image, using base64 fallback')
         // Continue with base64 if upload fails
       }
+    } else if (mapImageUrl) {
+      console.log('Map image URL is not base64, using as-is:', mapImageUrl.substring(0, 100))
     }
 
     // Send email with Resend and React Email

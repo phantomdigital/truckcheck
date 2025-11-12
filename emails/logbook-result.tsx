@@ -172,6 +172,13 @@ export function LogbookResultEmail({
                     />
                   </td>
                 </tr>
+                <tr>
+                  <td align="center" style={debugUrlWrapper}>
+                    <Text style={debugUrlText}>
+                      Image URL: {mapImageUrl}
+                    </Text>
+                  </td>
+                </tr>
               </table>
             </Section>
           )}
@@ -469,6 +476,21 @@ const mapImage = {
   border: '1px solid #d1d5db',
   display: 'block',
   margin: '0 auto',
+}
+
+const debugUrlWrapper = {
+  padding: '8px 0 0 0',
+  margin: '0',
+}
+
+const debugUrlText = {
+  color: '#6b7280',
+  fontSize: '8px',
+  lineHeight: '1.4',
+  margin: '0',
+  padding: '0',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  wordBreak: 'break-all' as const,
 }
 
 const distanceTable = {

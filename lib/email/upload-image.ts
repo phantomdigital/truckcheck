@@ -55,6 +55,8 @@ export async function uploadMapImage(
       return null
     }
 
+    console.log('Map image uploaded successfully:', { filePath, data })
+
     // Generate signed URL (valid for 1 year - emails need long-lived URLs)
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from('map-images')
@@ -64,6 +66,8 @@ export async function uploadMapImage(
       console.error('Error creating signed URL:', signedUrlError)
       return null
     }
+
+    console.log('Signed URL created:', { filePath, signedUrl: signedUrlData.signedUrl })
 
     // Return the signed URL - this will be proxied through our domain
     return signedUrlData.signedUrl

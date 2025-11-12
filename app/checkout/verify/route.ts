@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { createCheckoutSession } from "@/lib/stripe/utils"
+import { safeCaptureException } from "@/lib/sentry/utils"
 
 /**
  * Dedicated route for verifying authentication and starting checkout.
@@ -45,7 +46,13 @@ export async function GET(request: NextRequest) {
     // Redirect directly to Stripe checkout
     return NextResponse.redirect(session.url || "/pricing")
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
     console.error("[Checkout Verify] Error:", error)
+    safeCaptureException(err, {
+      context: "checkout_verify",
+      userId: user?.id,
+      priceId,
+    })
     // Redirect to pricing page with error
     return NextResponse.redirect(
       new URL("/pricing?error=checkout_failed", request.url)

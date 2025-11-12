@@ -1,6 +1,7 @@
 "use client"
 
 import { createClient } from "@/lib/supabase/client"
+import { captureEvent, resetUser } from "@/lib/posthog/utils"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { LogOut } from "lucide-react"
@@ -15,7 +16,18 @@ export function LogoutButton({ className }: LogoutButtonProps = {}) {
 
   const logout = async () => {
     const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    // Track logout event
+    if (user) {
+      captureEvent("user_logged_out")
+    }
+    
     await supabase.auth.signOut()
+    
+    // Reset PostHog user identification
+    resetUser()
+    
     router.push("/")
     router.refresh()
   }

@@ -3,6 +3,7 @@
 import { cache } from "react"
 import { createClient, getCachedUser } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { safeCaptureException } from "@/lib/sentry/utils"
 import type { SubscriptionStatus } from "./config"
 import { requireProSubscription } from "./server-guards"
 
@@ -107,13 +108,30 @@ export async function deleteCalculation(id: string) {
     return { success: false, error: "Unauthorized" }
   }
 
-  const { error } = await supabase
-    .from("calculation_history")
-    .delete()
-    .eq("id", id)
+  try {
+    const { error } = await supabase
+      .from("calculation_history")
+      .delete()
+      .eq("id", id)
 
-  if (error) {
-    return { success: false, error: error.message }
+    if (error) {
+      const err = new Error(`Failed to delete calculation: ${error.message}`)
+      safeCaptureException(err, {
+        context: "delete_calculation",
+        userId: user.id,
+        calculationId: id,
+        errorCode: error.code,
+      })
+      return { success: false, error: error.message }
+    }
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
+    safeCaptureException(err, {
+      context: "delete_calculation",
+      userId: user.id,
+      calculationId: id,
+    })
+    return { success: false, error: "Failed to delete calculation" }
   }
 
   revalidatePath("/account")
@@ -157,21 +175,37 @@ export async function saveCalculationToHistory(calculation: {
     // This is a double-check to ensure data integrity
   }
 
-  const { error } = await supabase.from("calculation_history").insert({
-    user_id: user.id,
-    base_location: calculation.baseLocation,
-    stops: calculation.stops,
-    destination: calculation.destination,
-    distance: calculation.distance,
-    max_distance_from_base: calculation.maxDistanceFromBase,
-    driving_distance: calculation.drivingDistance,
-    logbook_required: calculation.logbookRequired,
-    route_geometry: calculation.routeGeometry || null,
-  })
+  try {
+    const { error } = await supabase.from("calculation_history").insert({
+      user_id: user.id,
+      base_location: calculation.baseLocation,
+      stops: calculation.stops,
+      destination: calculation.destination,
+      distance: calculation.distance,
+      max_distance_from_base: calculation.maxDistanceFromBase,
+      driving_distance: calculation.drivingDistance,
+      logbook_required: calculation.logbookRequired,
+      route_geometry: calculation.routeGeometry || null,
+    })
 
-  if (error) {
-    console.error("Error saving calculation:", error)
-    return { success: false, error: error.message }
+    if (error) {
+      const err = new Error(`Failed to save calculation: ${error.message}`)
+      safeCaptureException(err, {
+        context: "save_calculation_to_history",
+        userId: user.id,
+        errorCode: error.code,
+      })
+      console.error("Error saving calculation:", error)
+      return { success: false, error: error.message }
+    }
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
+    safeCaptureException(err, {
+      context: "save_calculation_to_history",
+      userId: user.id,
+    })
+    console.error("Unexpected error saving calculation:", error)
+    return { success: false, error: "Failed to save calculation" }
   }
 
   revalidatePath("/account")

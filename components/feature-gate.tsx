@@ -1,6 +1,7 @@
 "use client"
 
 import { useCheckout } from "@/lib/stripe/hooks"
+import { captureEvent } from "@/lib/posthog/utils"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -28,6 +29,12 @@ export function FeatureGate({ children, feature, isPro, showUpgrade = true }: Fe
     return null
   }
 
+  // Track feature gate hit
+  captureEvent("feature_gate_hit", {
+    feature_name: feature,
+    is_pro: isPro,
+  })
+
   return (
     <Card className="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/10">
       <CardHeader>
@@ -49,6 +56,13 @@ export function FeatureGate({ children, feature, isPro, showUpgrade = true }: Fe
 export function UpgradePrompt({ className }: { className?: string }) {
   const { createCheckout, loading } = useCheckout()
 
+  const handleUpgrade = () => {
+    captureEvent("upgrade_prompt_clicked", {
+      location: "feature_gate",
+    })
+    createCheckout()
+  }
+
   return (
     <div className={className}>
       <div className="space-y-4">
@@ -59,7 +73,7 @@ export function UpgradePrompt({ className }: { className?: string }) {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button onClick={() => createCheckout()} disabled={loading} className="flex-1">
+          <Button onClick={handleUpgrade} disabled={loading} className="flex-1">
             <Sparkles className="h-4 w-4 mr-2" />
             {loading ? "Loading..." : "Upgrade to Pro - $18/month"}
           </Button>

@@ -2,6 +2,7 @@
 
 import { createClient, getCachedUser } from "@/lib/supabase/server"
 import { getSubscriptionStatus } from "@/lib/stripe/actions"
+import { safeCaptureException } from "@/lib/sentry/utils"
 import { revalidatePath } from "next/cache"
 
 export interface Depot {
@@ -99,48 +100,80 @@ export async function saveDepot(depot: {
 
   if (existingDepots && existingDepots.length > 0) {
     // Update existing depot
-    const { data: updatedDepot, error } = await supabase
+    try {
+      const { data: updatedDepot, error } = await supabase
+        .from("depots")
+        .update({
+          address: formattedAddress,
+          lat: depot.lat,
+          lng: depot.lng,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingDepots[0].id)
+        .select()
+        .single()
+
+      if (error) {
+        const err = new Error(`Failed to update depot: ${error.message}`)
+        safeCaptureException(err, {
+          context: "save_depot_update",
+          userId: user.id,
+          depotId: existingDepots[0].id,
+          errorCode: error.code,
+        })
+        return { success: false, error: error.message }
+      }
+
+      revalidatePath("/account")
+      revalidatePath("/logbook-calculator")
+
+      return { success: true, data: updatedDepot as Depot }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      safeCaptureException(err, {
+        context: "save_depot_update",
+        userId: user.id,
+        depotId: existingDepots[0].id,
+      })
+      return { success: false, error: "Failed to update depot" }
+    }
+  }
+
+  // Insert new depot
+  try {
+    const { data: newDepot, error } = await supabase
       .from("depots")
-      .update({
+      .insert({
+        user_id: user.id,
         address: formattedAddress,
         lat: depot.lat,
         lng: depot.lng,
-        updated_at: new Date().toISOString(),
       })
-      .eq("id", existingDepots[0].id)
       .select()
       .single()
 
     if (error) {
+      const err = new Error(`Failed to create depot: ${error.message}`)
+      safeCaptureException(err, {
+        context: "save_depot_create",
+        userId: user.id,
+        errorCode: error.code,
+      })
       return { success: false, error: error.message }
     }
 
     revalidatePath("/account")
     revalidatePath("/logbook-calculator")
 
-    return { success: true, data: updatedDepot as Depot }
-  }
-
-  // Insert new depot
-  const { data: newDepot, error } = await supabase
-    .from("depots")
-    .insert({
-      user_id: user.id,
-      address: formattedAddress,
-      lat: depot.lat,
-      lng: depot.lng,
+    return { success: true, data: newDepot as Depot }
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
+    safeCaptureException(err, {
+      context: "save_depot_create",
+      userId: user.id,
     })
-    .select()
-    .single()
-
-  if (error) {
-    return { success: false, error: error.message }
+    return { success: false, error: "Failed to save depot" }
   }
-
-  revalidatePath("/account")
-  revalidatePath("/logbook-calculator")
-
-  return { success: true, data: newDepot as Depot }
 }
 
 /**
@@ -159,14 +192,31 @@ export async function deleteDepot(depotId: string): Promise<{
 
   const supabase = await createClient()
 
-  const { error } = await supabase
-    .from("depots")
-    .delete()
-    .eq("id", depotId)
-    .eq("user_id", user.id)
+  try {
+    const { error } = await supabase
+      .from("depots")
+      .delete()
+      .eq("id", depotId)
+      .eq("user_id", user.id)
 
-  if (error) {
-    return { success: false, error: error.message }
+    if (error) {
+      const err = new Error(`Failed to delete depot: ${error.message}`)
+      safeCaptureException(err, {
+        context: "delete_depot",
+        userId: user.id,
+        depotId,
+        errorCode: error.code,
+      })
+      return { success: false, error: error.message }
+    }
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
+    safeCaptureException(err, {
+      context: "delete_depot",
+      userId: user.id,
+      depotId,
+    })
+    return { success: false, error: "Failed to delete depot" }
   }
 
   revalidatePath("/account")

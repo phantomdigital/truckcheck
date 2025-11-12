@@ -1,4 +1,5 @@
 import type { GeocodeResult, RouteData } from "./types"
+import { safeCaptureException } from "@/lib/sentry/utils"
 
 /**
  * Haversine formula to calculate distance between two points (as the crow flies)
@@ -31,26 +32,48 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult> {
   // Encode address for URL
   const encodedAddress = encodeURIComponent(address)
   
-  // Use Mapbox Geocoding API (Australia-focused)
-  const response = await fetch(
-    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?country=AU&access_token=${mapboxToken}&limit=1`
-  )
+  try {
+    // Use Mapbox Geocoding API (Australia-focused)
+    const response = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?country=AU&access_token=${mapboxToken}&limit=1`
+    )
 
-  if (!response.ok) {
-    throw new Error(`Geocoding failed: ${response.statusText}`)
+    if (!response.ok) {
+      const error = new Error(`Geocoding failed: ${response.statusText}`)
+      safeCaptureException(error, {
+        context: "geocode_address_api_error",
+        address,
+        status: response.status,
+        statusText: response.statusText,
+      })
+      throw error
+    }
+
+    const data = await response.json()
+
+    if (!data.features || data.features.length === 0) {
+      // Not found is a user error, not a system error - don't track in Sentry
+      throw new Error(`Could not find location: ${address}`)
+    }
+
+    const feature = data.features[0]
+    const [lng, lat] = feature.center
+    const placeName = feature.place_name
+
+    return { lat, lng, placeName }
+  } catch (error) {
+    // Re-throw user-facing errors (not found) without tracking
+    if (error instanceof Error && error.message.includes("Could not find location")) {
+      throw error
+    }
+    // Track unexpected errors
+    const err = error instanceof Error ? error : new Error(String(error))
+    safeCaptureException(err, {
+      context: "geocode_address_unexpected_error",
+      address,
+    })
+    throw err
   }
-
-  const data = await response.json()
-
-  if (!data.features || data.features.length === 0) {
-    throw new Error(`Could not find location: ${address}`)
-  }
-
-  const feature = data.features[0]
-  const [lng, lat] = feature.center
-  const placeName = feature.place_name
-
-  return { lat, lng, placeName }
 }
 
 /**
@@ -82,6 +105,13 @@ export async function calculateDrivingDistance(
     )
 
     if (!response.ok) {
+      const error = new Error(`Mapbox Directions API failed: ${response.statusText}`)
+      safeCaptureException(error, {
+        context: "calculate_driving_distance_api_error",
+        status: response.status,
+        statusText: response.statusText,
+        waypointCount: waypoints.length,
+      })
       return null
     }
 
@@ -125,6 +155,11 @@ export async function calculateDrivingDistance(
 
     return null
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
+    safeCaptureException(err, {
+      context: "calculate_driving_distance_unexpected_error",
+      waypointCount: waypoints.length,
+    })
     console.error("Error calculating driving distance:", error)
     return null
   }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
+import { captureEvent } from "@/lib/posthog/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -325,6 +326,16 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
       }
 
       setResult(calculationResult)
+
+      // Track calculation event
+      captureEvent("calculation_performed", {
+        is_pro: isPro,
+        stop_count: finalStops.length,
+        logbook_required: logbookRequired,
+        distance_km: Math.round(distance),
+        driving_distance_km: routeData?.distance ? Math.round(routeData.distance) : null,
+        has_multiple_stops: finalStops.length > 1,
+      })
 
       // Save to history if Pro user (via Server Action)
       if (isPro) {

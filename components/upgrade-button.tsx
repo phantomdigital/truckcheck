@@ -37,6 +37,13 @@ export function UpgradeButton({
   }, [])
 
   const handleClick = () => {
+    // Track upgrade button click
+    captureEvent("upgrade_button_clicked", {
+      price_id: priceId,
+      is_authenticated: isAuthenticated,
+      location: "upgrade_button",
+    })
+    
     if (!isAuthenticated) {
       // Redirect to sign-up with checkout intent - better UX for new users
       const params = new URLSearchParams()

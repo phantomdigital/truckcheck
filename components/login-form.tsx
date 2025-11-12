@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { captureEvent, identifyUser } from "@/lib/posthog/utils"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -39,11 +40,23 @@ export function LoginForm({
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       if (error) throw error
+      
+      // Track login event and identify user
+      if (data.user) {
+        captureEvent("user_logged_in", {
+          checkout_intent: shouldCheckout,
+          price_id: priceId,
+          plan_name: planName,
+        })
+        identifyUser(data.user.id, {
+          email: data.user.email,
+        })
+      }
       
       // If checkout intent, redirect to checkout verification route
       // Keep loading state active during navigation

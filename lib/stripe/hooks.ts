@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
+import { safeCaptureException } from "@/lib/sentry/utils"
+import { captureEvent } from "@/lib/posthog/utils"
 
 /**
  * Hook to create checkout session and redirect to Stripe
@@ -15,7 +17,7 @@ import { createClient } from "@/lib/supabase/client"
  * 
  * The server-side validation is the source of truth - client-side checks are
  * purely for better user experience and can be bypassed, but the server will
- * reject unauthorized requests.
+ * reject unauthorised requests.
  */
 export function useCheckout() {
   const router = useRouter()
@@ -52,10 +54,20 @@ export function useCheckout() {
       const { url } = await response.json()
 
       if (url) {
+        // Track checkout started event
+        captureEvent("checkout_started", {
+          price_id: priceId,
+          user_id: user?.id,
+        })
         window.location.href = url
       }
     } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
       console.error("Error creating checkout:", error)
+      safeCaptureException(err, {
+        context: "client_checkout_creation",
+        priceId,
+      })
       toast.error("Failed to start checkout. Please try again.")
     } finally {
       setLoading(false)
@@ -73,6 +85,7 @@ export function useCustomerPortal() {
   const [loading, setLoading] = useState(false)
 
   const createPortal = async () => {
+    let customerId: string | undefined
     try {
       setLoading(true)
       const supabase = createClient()
@@ -97,6 +110,8 @@ export function useCustomerPortal() {
         return
       }
 
+      customerId = userData.stripe_customer_id
+
       const response = await fetch("/api/stripe/create-portal", {
         method: "POST",
         headers: {
@@ -114,10 +129,20 @@ export function useCustomerPortal() {
       const { url } = await response.json()
 
       if (url) {
+        // Track customer portal access
+        captureEvent("customer_portal_accessed", {
+          user_id: user.id,
+          customer_id: customerId,
+        })
         window.location.href = url
       }
     } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
       console.error("Error creating portal:", error)
+      safeCaptureException(err, {
+        context: "client_portal_creation",
+        customerId,
+      })
       toast.error("Failed to open customer portal. Please try again.")
     } finally {
       setLoading(false)

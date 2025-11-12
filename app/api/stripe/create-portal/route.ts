@@ -1,5 +1,6 @@
 import { createPortalSession } from "@/lib/stripe/utils"
 import { createClient } from "@/lib/supabase/server"
+import { safeCaptureException } from "@/lib/sentry/utils"
 import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {
@@ -46,7 +47,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: session.url })
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
     console.error("Error creating portal session:", error)
+    safeCaptureException(err, {
+      context: "stripe_create_portal",
+      userId: user?.id,
+      customerId,
+    })
     return NextResponse.json(
       { error: "Failed to create portal session" },
       { status: 500 }

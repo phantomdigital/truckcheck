@@ -2,6 +2,7 @@ import { headers } from "next/headers"
 import { NextResponse } from "next/server"
 import { stripe } from "@/lib/stripe/config"
 import { createServiceRoleClient } from "@/lib/supabase/server"
+import { safeCaptureException } from "@/lib/sentry/utils"
 import Stripe from "stripe"
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
@@ -79,7 +80,12 @@ export async function POST(req: Request) {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
     console.log("[Webhook] Event type:", event.type)
   } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err))
     console.error("[Webhook] Signature verification failed:", err)
+    safeCaptureException(error, {
+      context: "stripe_webhook_signature_verification",
+      eventType: "unknown",
+    })
     return NextResponse.json(
       { error: "Webhook signature verification failed" },
       { status: 400 }
@@ -130,6 +136,14 @@ export async function POST(req: Request) {
               .eq("id", userId)
             
             if (error) {
+              const err = new Error(`Failed to update user subscription: ${error.message}`)
+              safeCaptureException(err, {
+                context: "stripe_webhook_user_update",
+                eventType: event.type,
+                userId,
+                subscriptionId: subscription.id,
+                errorCode: error.code,
+              })
               console.error("[Webhook] Error updating user:", JSON.stringify(error))
             } else {
               console.log("[Webhook] Successfully updated user to Pro:", userId)
@@ -239,7 +253,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ received: true })
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
     console.error("Error processing webhook:", error)
+    safeCaptureException(err, {
+      context: "stripe_webhook_processing",
+      eventType: event?.type || "unknown",
+      eventId: event?.id,
+    })
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 }

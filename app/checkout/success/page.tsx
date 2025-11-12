@@ -6,6 +6,7 @@ import type { Metadata } from "next"
 import { generatePageMetadata } from "@/lib/seo/config"
 import { SubscriptionDetails } from "@/components/checkout/subscription-details"
 import { SubscriptionDetailsSkeleton, FeaturesListSkeleton } from "@/components/checkout/success-skeletons"
+import { CheckoutSuccessTracker } from "@/components/checkout-success-tracker"
 
 export const metadata: Metadata = generatePageMetadata({
   title: "Welcome to Pro - TruckCheck",
@@ -15,7 +16,9 @@ export const metadata: Metadata = generatePageMetadata({
 
 export default function CheckoutSuccessPage() {
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-12 sm:py-20">
+    <>
+      <CheckoutSuccessTracker />
+      <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-12 sm:py-20">
       <div className="max-w-2xl mx-auto">
         {/* Success Header - Static, loads immediately */}
         <div className="text-center space-y-4 mb-8">
@@ -79,6 +82,7 @@ export default function CheckoutSuccessPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 

@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { captureEvent, identifyUser } from "@/lib/posthog/utils"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -74,6 +75,23 @@ export function SignUpForm({
         },
       })
       if (error) throw error
+      
+      // Track sign up event
+      captureEvent("user_signed_up", {
+        checkout_intent: shouldCheckout,
+        price_id: priceId,
+        plan_name: planName,
+        requires_email_confirmation: !data.session,
+      })
+      
+      // Identify user if immediately authenticated
+      if (data.session && data.user) {
+        identifyUser(data.user.id, {
+          email: data.user.email,
+          first_name: firstName,
+          last_name: lastName,
+        })
+      }
       
       // Check if user is immediately authenticated (email confirmation may or may not be required)
       // If session exists, user can proceed to checkout

@@ -1,5 +1,6 @@
 import { createCheckoutSession } from "@/lib/stripe/utils"
 import { createClient } from "@/lib/supabase/server"
+import { safeCaptureException } from "@/lib/sentry/utils"
 import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {
@@ -29,7 +30,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: session.url })
   } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
     console.error("Error creating checkout session:", error)
+    safeCaptureException(err, {
+      context: "stripe_create_checkout",
+      userId: user?.id,
+      priceId,
+    })
     return NextResponse.json(
       { error: "Failed to create checkout session" },
       { status: 500 }

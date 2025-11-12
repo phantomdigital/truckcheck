@@ -4,22 +4,29 @@ Follow these steps to enable automated deployments where Vercel deploys **only a
 
 ## Step 1: Get Vercel Token
 
+**CRITICAL:** Create the token scoped to your **Phantom Digital team**, not your personal account.
+
 1. Go to https://vercel.com/account/tokens
-2. Click **"Create Token"**
-3. Name it: `GitHub Actions` (or similar)
-4. Copy the token (you won't see it again!)
-5. ✅ **Add to GitHub Secrets:** `VERCEL_TOKEN`
+2. **Make sure you're viewing tokens for your team** (switch to "Phantom Digital" team if needed)
+3. Click **"Create Token"**
+4. Name it: `GitHub Actions` (or similar)
+5. **Ensure it's scoped to your team** (not your personal account)
+6. Copy the token (you won't see it again!)
+7. ✅ **Add to GitHub Secrets:** `VERCEL_TOKEN`
 
 ## Step 2: Get Vercel Team/Org ID
 
+**CRITICAL:** You need the **Team ID** (Phantom Digital), NOT your personal account ID.
+
 **Note:** Vercel uses "Team ID" and "Org ID" interchangeably - they're the same thing.
 
-1. Go to https://vercel.com/account
-2. Your Team/Org ID is visible in:
-   - The URL: `https://vercel.com/[TEAM_ID]/...`
-   - Or go to **Settings** → **General** → Look for "Team ID"
-   - Or check your team settings page
-3. ✅ **Add to GitHub Secrets:** `VERCEL_ORG_ID` (use your Team ID value)
+1. Go to your **Phantom Digital** team page: `https://vercel.com/phantom-digital` (or switch to your team in the Vercel dashboard)
+2. Go to **Settings** → **General** (team settings, not your personal account settings)
+3. Look for **"Team ID"** - this is what you need
+4. **Alternative:** The Team ID is also in the URL when viewing team settings: `https://vercel.com/[TEAM_ID]/settings`
+5. ✅ **Add to GitHub Secrets:** `VERCEL_ORG_ID` (use the **Team ID**, not your personal account ID)
+
+**Important:** If you're using a personal account ID instead of the team ID, deployments will fail with scope errors.
 
 ## Step 3: Get Vercel Project IDs
 

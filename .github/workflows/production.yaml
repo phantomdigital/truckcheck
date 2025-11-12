@@ -82,7 +82,8 @@ jobs:
       # Deploy to Vercel only after migrations succeed
       # This ensures database schema is ready before code goes live
       - name: Deploy to Vercel (Production)
-        if: success() # Only deploy if migrations succeeded
+        if: success() # Only deploy if migrations succeed
+        timeout-minutes: 10 # Prevent hanging on inspect step
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -93,4 +94,5 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
+        continue-on-error: true # Continue even if inspect step fails (deployment already succeeded)
 

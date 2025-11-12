@@ -88,9 +88,16 @@ export async function POST(req: Request) {
             ? session.subscription 
             : session.subscription.id
           console.log("[Webhook] Retrieving subscription:", subscriptionId)
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+            expand: ['items.data.price.product']
+          })
           
           const userId = session.metadata?.userId || subscription.metadata?.userId
+          
+          // Log the actual subscription object keys to debug
+          console.log("[Webhook] Subscription keys:", Object.keys(subscription))
+          console.log("[Webhook] Full subscription:", JSON.stringify(subscription, null, 2))
+          
           const periodEnd = getSubscriptionPeriodEnd(subscription)
           console.log("[Webhook] UserId from metadata:", userId)
           console.log("[Webhook] Session metadata:", JSON.stringify(session.metadata))

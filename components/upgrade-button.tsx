@@ -17,7 +17,7 @@ export function UpgradeButton({
   size = "default",
   priceId,
 }: UpgradeButtonProps) {
-  const { createCheckout, loading } = useCheckout()
+  const { createCheckout, loading, loadingMessage } = useCheckout()
 
   const handleClick = () => {
     // Track upgrade button click (non-blocking)
@@ -42,7 +42,7 @@ export function UpgradeButton({
       {loading ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          Preparing checkout...
+          {loadingMessage}
         </>
       ) : (
         <>

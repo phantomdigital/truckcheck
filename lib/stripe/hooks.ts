@@ -22,11 +22,13 @@ import { captureEvent } from "@/lib/posthog/utils"
 export function useCheckout() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState<string>("Preparing checkout...")
 
   const createCheckout = async (priceId?: string) => {
     // Set loading immediately for instant feedback (before any async operations)
     // This ensures users see feedback even on slow connections
     setLoading(true)
+    setLoadingMessage("Checking...")
     
     try {
       // Client-side check for UX (early redirect, better error messages)
@@ -40,6 +42,7 @@ export function useCheckout() {
         // Redirect to sign-up with checkout intent - better UX for new users
         // They can sign up or login from there
         // Keep loading state during redirect - don't reset it
+        setLoadingMessage("Redirecting to sign up...")
         const params = new URLSearchParams()
         params.set("redirect", "/pricing")
         params.set("checkout", "true")
@@ -52,6 +55,9 @@ export function useCheckout() {
         // Component will unmount anyway, so this is fine
         return
       }
+
+      // User is authenticated, prepare checkout
+      setLoadingMessage("Preparing checkout...")
 
       const response = await fetch("/api/stripe/create-checkout", {
         method: "POST",
@@ -90,10 +96,11 @@ export function useCheckout() {
       toast.error("Failed to start checkout. Please try again.")
       // Only reset loading on error (not on redirects)
       setLoading(false)
+      setLoadingMessage("Preparing checkout...") // Reset to default message
     }
   }
 
-  return { createCheckout, loading }
+  return { createCheckout, loading, loadingMessage }
 }
 
 /**

@@ -84,12 +84,8 @@ jobs:
       - name: Deploy to Vercel (Production)
         if: success() # Only deploy if migrations succeed
         timeout-minutes: 10 # Prevent hanging on inspect step
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
-          vercel-args: '--prod' # Production deployment (--yes not needed in v25+)
+        run: |
+          npx vercel@latest deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }}
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

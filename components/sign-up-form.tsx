@@ -189,7 +189,7 @@ export function SignUpForm({
                 />
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" variant="cta" className="w-full !rounded-md" disabled={isLoading}>
+              <Button type="submit" variant="cta" className="w-full rounded-md!" disabled={isLoading}>
                 {isLoading 
                   ? (shouldCheckout ? "Creating account..." : "Creating an account...")
                   : (shouldCheckout ? "Continue to checkout" : "Sign up")}

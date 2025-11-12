@@ -1,38 +1,40 @@
 import Link from "next/link"
 import { Button } from "./ui/button"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, getCachedUser } from "@/lib/supabase/server"
+import { getSubscriptionStatus } from "@/lib/stripe/actions"
 import { AccountPopover } from "./account-popover"
 
 export async function AuthButton() {
-  const supabase = await createClient()
-
-  // Get user data
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     return (
       <div className="flex items-center gap-2">
         <Button asChild size="sm" variant={"ghost"}>
-          <Link href="/auth/login">Login</Link>
+          <Link href="/auth/login" prefetch={true}>Login</Link>
         </Button>
         <Button asChild size="rounded" variant={"cta"}>
-          <Link href="/auth/sign-up">Get Started</Link>
+          <Link href="/auth/sign-up" prefetch={true}>Get Started</Link>
         </Button>
       </div>
     )
   }
 
-  // Get subscription status and user details
-  const { data: userData } = await supabase
+  // Get subscription status (cached) and user details in parallel
+  const [subscriptionStatus, userDataResult] = await Promise.all([
+    getSubscriptionStatus(),
+    (async () => {
+      const supabase = await createClient()
+      return await supabase
     .from("users")
-    .select("first_name, last_name, subscription_status, subscription_current_period_end")
+        .select("first_name, last_name")
     .eq("id", user.id)
     .single()
+    })(),
+  ])
 
-  const isPro = userData?.subscription_status === "pro"
-  const subscriptionEndDate = userData?.subscription_current_period_end
+  const userData = userDataResult.data
 
   return (
     <AccountPopover
@@ -41,8 +43,8 @@ export async function AuthButton() {
         firstName: userData?.first_name,
         lastName: userData?.last_name,
       }}
-      isPro={isPro}
-      subscriptionEndDate={subscriptionEndDate}
+      isPro={subscriptionStatus.isPro}
+      subscriptionEndDate={subscriptionStatus.subscriptionEndDate}
     />
   )
 }

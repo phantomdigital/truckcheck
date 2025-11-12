@@ -9,7 +9,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
-          <Link href="/" className="hover:opacity-80 transition-opacity shrink-0">
+          <Link href="/" prefetch={true} className="hover:opacity-80 transition-opacity shrink-0">
             <Image
               src="/logo.png"
               alt="TruckCheck"

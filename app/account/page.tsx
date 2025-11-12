@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, getCachedUser } from "@/lib/supabase/server"
 import { getSubscriptionStatus, getCalculationHistory } from "@/lib/stripe/actions"
 import { getDepot } from "@/lib/depot/actions"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,21 +24,22 @@ export default async function AccountPage({
 }: {
   searchParams: Promise<{ success?: string; canceled?: string }>
 }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     redirect("/auth/login?redirect=/account")
   }
 
   const params = await searchParams
-  const { status, isPro } = await getSubscriptionStatus()
+  // getSubscriptionStatus already uses cached user, so no duplicate query
+  const { status, isPro, subscriptionEndDate } = await getSubscriptionStatus()
 
+  // Fetch user email separately (not cached in subscription status)
+  const supabase = await createClient()
   const { data: userData } = await supabase
     .from("users")
-    .select("email, subscription_current_period_end")
+    .select("email")
     .eq("id", user.id)
     .single()
 
@@ -135,14 +136,14 @@ export default async function AccountPage({
                   {isPro ? "Pro - $18/month AUD" : "Free"}
                 </span>
               </div>
-              {isPro && userData?.subscription_current_period_end && (
+              {isPro && subscriptionEndDate && (
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     Renews on
                   </span>
                   <span className="text-sm">
-                    {new Date(userData.subscription_current_period_end).toLocaleDateString("en-AU", {
+                    {new Date(subscriptionEndDate).toLocaleDateString("en-AU", {
                       day: "numeric",
                       month: "long",
                       year: "numeric",

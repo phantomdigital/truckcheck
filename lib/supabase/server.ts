@@ -1,3 +1,4 @@
+import { cache } from "react"
 import { createServerClient } from "@supabase/ssr"
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
@@ -33,6 +34,18 @@ export async function createClient() {
     },
   )
 }
+
+/**
+ * Cached function to get the current user
+ * Uses React cache() to deduplicate requests within the same render
+ */
+export const getCachedUser = cache(async () => {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  return user
+})
 
 /**
  * Create a Supabase client with service role permissions.

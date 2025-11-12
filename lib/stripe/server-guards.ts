@@ -3,22 +3,21 @@
  * These must be called in Server Actions or API routes to enforce subscription checks
  */
 
-import { createClient } from "@/lib/supabase/server"
-import type { SubscriptionStatus } from "./config"
+import { getCachedUser } from "@/lib/supabase/server"
+import { getSubscriptionStatus } from "./actions"
 
 /**
  * Check if the current user has an active Pro subscription
  * This should be called at the START of any Server Action that requires Pro
+ * Uses cached functions to avoid duplicate queries
  */
 export async function requireProSubscription(): Promise<{
   isAuthorized: boolean
   userId: string | null
   error: string | null
 }> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     return {
@@ -28,15 +27,10 @@ export async function requireProSubscription(): Promise<{
     }
   }
 
-  const { data: userData } = await supabase
-    .from("users")
-    .select("subscription_status")
-    .eq("id", user.id)
-    .single()
+  // Use cached subscription status to avoid duplicate queries
+  const { isPro } = await getSubscriptionStatus()
 
-  const status = (userData?.subscription_status || "free") as SubscriptionStatus
-
-  if (status !== "pro") {
+  if (!isPro) {
     return {
       isAuthorized: false,
       userId: user.id,

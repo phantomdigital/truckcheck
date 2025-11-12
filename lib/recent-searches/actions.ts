@@ -1,34 +1,31 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createClient, getCachedUser } from "@/lib/supabase/server"
+import { getSubscriptionStatus } from "@/lib/stripe/actions"
 import { revalidatePath } from "next/cache"
 
 /**
  * Server action to get recent searches (Pro users only)
  * SECURITY: Server-side validation + RLS enforcement
+ * Uses cached functions to avoid duplicate queries
  */
 export async function getRecentSearches() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     return { data: [], error: "Unauthorized" }
   }
 
-  // SECURITY: Check Pro subscription status
-  const { data: userData } = await supabase
-    .from("users")
-    .select("subscription_status")
-    .eq("id", user.id)
-    .single()
+  // Use cached subscription status to avoid duplicate queries
+  const { isPro } = await getSubscriptionStatus()
 
-  if (userData?.subscription_status !== "pro") {
+  if (!isPro) {
     return { data: [], error: "Pro subscription required" }
   }
 
   // RLS policies will further enforce this at database level
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from("recent_searches")
     .select("*")
@@ -53,25 +50,21 @@ export async function saveRecentSearch(search: {
   distance: number
   logbookRequired: boolean
 }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     return { success: false, error: "Unauthorized" }
   }
 
-  // SECURITY: Server-side check - user cannot bypass this
-  const { data: userData } = await supabase
-    .from("users")
-    .select("subscription_status")
-    .eq("id", user.id)
-    .single()
+  // Use cached subscription status to avoid duplicate queries
+  const { isPro } = await getSubscriptionStatus()
 
-  if (userData?.subscription_status !== "pro") {
+  if (!isPro) {
     return { success: false, error: "Pro subscription required" }
   }
+
+  const supabase = await createClient()
 
   // RLS policies will further enforce this at database level
   const { error } = await supabase.from("recent_searches").insert({
@@ -97,25 +90,21 @@ export async function saveRecentSearch(search: {
  * SECURITY: Server-side validation + RLS enforcement + ownership check
  */
 export async function deleteRecentSearch(searchId: string) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     return { success: false, error: "Unauthorized" }
   }
 
-  // SECURITY: Check Pro subscription status
-  const { data: userData } = await supabase
-    .from("users")
-    .select("subscription_status")
-    .eq("id", user.id)
-    .single()
+  // Use cached subscription status to avoid duplicate queries
+  const { isPro } = await getSubscriptionStatus()
 
-  if (userData?.subscription_status !== "pro") {
+  if (!isPro) {
     return { success: false, error: "Pro subscription required" }
   }
+
+  const supabase = await createClient()
 
   // SECURITY: RLS policies will ensure user can only delete their own searches
   const { error } = await supabase
@@ -139,25 +128,21 @@ export async function deleteRecentSearch(searchId: string) {
  * SECURITY: Server-side validation + RLS enforcement
  */
 export async function clearRecentSearches() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     return { success: false, error: "Unauthorized" }
   }
 
-  // SECURITY: Check Pro subscription status
-  const { data: userData } = await supabase
-    .from("users")
-    .select("subscription_status")
-    .eq("id", user.id)
-    .single()
+  // Use cached subscription status to avoid duplicate queries
+  const { isPro } = await getSubscriptionStatus()
 
-  if (userData?.subscription_status !== "pro") {
+  if (!isPro) {
     return { success: false, error: "Pro subscription required" }
   }
+
+  const supabase = await createClient()
 
   // RLS policies will further enforce this at database level
   const { error } = await supabase

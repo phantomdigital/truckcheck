@@ -41,6 +41,7 @@ export async function Footer() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      prefetch={true}
                       className="text-muted-foreground hover:text-foreground transition-colors"
                     >
                       {item.title}
@@ -62,6 +63,7 @@ export async function Footer() {
                 <li>
                   <Link
                     href="/privacy"
+                    prefetch={true}
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Privacy Policy
@@ -70,6 +72,7 @@ export async function Footer() {
                 <li>
                   <Link
                     href="/terms"
+                    prefetch={true}
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Terms of Service
@@ -108,6 +111,7 @@ export async function Footer() {
                 <span>•</span>
                 <Link
                   href="/contact"
+                  prefetch={true}
                   className="hover:text-foreground transition-colors"
                 >
                   Contact

@@ -1,28 +1,29 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { cache } from "react"
+import { createClient, getCachedUser } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import type { SubscriptionStatus } from "./config"
 import { requireProSubscription } from "./server-guards"
 
 /**
- * Server action to get user's subscription status
+ * Cached server action to get user's subscription status
+ * Uses React cache() to deduplicate requests within the same render
  */
-export async function getSubscriptionStatus(): Promise<{
+export const getSubscriptionStatus = cache(async (): Promise<{
   status: SubscriptionStatus
   isPro: boolean
   userId: string | null
   subscriptionEndDate: string | null
-}> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+}> => {
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     return { status: "free", isPro: false, userId: null, subscriptionEndDate: null }
   }
 
+  const supabase = await createClient()
   const { data: userData } = await supabase
     .from("users")
     .select("subscription_status, subscription_current_period_end")
@@ -38,32 +39,28 @@ export async function getSubscriptionStatus(): Promise<{
     userId: user.id,
     subscriptionEndDate: userData?.subscription_current_period_end || null
   }
-}
+})
 
 /**
  * Server action to get calculation history
+ * Uses cached functions to avoid duplicate queries
  */
 export async function getCalculationHistory() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     return { data: [], error: "Unauthorized" }
   }
 
-  // Check if user is Pro
-  const { data: userData } = await supabase
-    .from("users")
-    .select("subscription_status")
-    .eq("id", user.id)
-    .single()
+  // Use cached subscription status to avoid duplicate queries
+  const { isPro } = await getSubscriptionStatus()
 
-  if (userData?.subscription_status !== "pro") {
+  if (!isPro) {
     return { data: [], error: "Pro subscription required" }
   }
 
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from("calculation_history")
     .select("*")
@@ -83,25 +80,21 @@ export async function getCalculationHistory() {
  * SECURITY: Server-side validation ensures only Pro users can delete their own history
  */
 export async function deleteCalculation(id: string) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     return { success: false, error: "Unauthorized" }
   }
 
-  // SECURITY: Check Pro subscription status
-  const { data: userData } = await supabase
-    .from("users")
-    .select("subscription_status")
-    .eq("id", user.id)
-    .single()
+  // Use cached subscription status to avoid duplicate queries
+  const { isPro } = await getSubscriptionStatus()
 
-  if (userData?.subscription_status !== "pro") {
+  if (!isPro) {
     return { success: false, error: "Pro subscription required" }
   }
+
+  const supabase = await createClient()
 
   // SECURITY: Verify the calculation belongs to the user
   const { data: calculation } = await supabase
@@ -141,25 +134,21 @@ export async function saveCalculationToHistory(calculation: {
   logbookRequired: boolean
   routeGeometry?: unknown
 }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     return { success: false, error: "Unauthorized" }
   }
 
-  // SECURITY: Server-side check - user cannot bypass this
-  const { data: userData } = await supabase
-    .from("users")
-    .select("subscription_status")
-    .eq("id", user.id)
-    .single()
+  // Use cached subscription status to avoid duplicate queries
+  const { isPro } = await getSubscriptionStatus()
 
-  if (userData?.subscription_status !== "pro") {
+  if (!isPro) {
     return { success: false, error: "Pro subscription required" }
   }
+
+  const supabase = await createClient()
 
   // SECURITY: Validate stop count for Pro feature
   const stops = Array.isArray(calculation.stops) ? calculation.stops : []

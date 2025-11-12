@@ -1,6 +1,7 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createClient, getCachedUser } from "@/lib/supabase/server"
+import { getSubscriptionStatus } from "@/lib/stripe/actions"
 import { revalidatePath } from "next/cache"
 
 export interface Depot {
@@ -31,14 +32,14 @@ export async function getDepots(): Promise<{
   data: Depot[]
   error: string | null
 }> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     return { data: [], error: "Unauthorized" }
   }
+
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from("depots")
@@ -66,25 +67,21 @@ export async function saveDepot(depot: {
   error?: string
   data?: Depot
 }> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     return { success: false, error: "Unauthorized" }
   }
 
-  // Check if user is Pro
-  const { data: userData } = await supabase
-    .from("users")
-    .select("subscription_status")
-    .eq("id", user.id)
-    .single()
+  // Use cached subscription status to avoid duplicate queries
+  const { isPro } = await getSubscriptionStatus()
 
-  if (userData?.subscription_status !== "pro") {
+  if (!isPro) {
     return { success: false, error: "Pro subscription required" }
   }
+
+  const supabase = await createClient()
 
   // For legacy single-depot UI: update or replace the first depot
   // Check if user already has a depot
@@ -153,14 +150,14 @@ export async function deleteDepot(depotId: string): Promise<{
   success: boolean
   error?: string
 }> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Use cached user to avoid duplicate auth calls
+  const user = await getCachedUser()
 
   if (!user) {
     return { success: false, error: "Unauthorized" }
   }
+
+  const supabase = await createClient()
 
   const { error } = await supabase
     .from("depots")

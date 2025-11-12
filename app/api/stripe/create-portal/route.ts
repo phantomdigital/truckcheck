@@ -4,8 +4,12 @@ import { safeCaptureException } from "@/lib/sentry/utils"
 import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {
+  let userId: string | undefined
+  let customerId: string | undefined
+  
   try {
-    const { customerId } = await req.json()
+    const body = await req.json()
+    customerId = body.customerId
 
     if (!customerId) {
       return NextResponse.json(
@@ -25,6 +29,8 @@ export async function POST(req: Request) {
         { status: 401 }
       )
     }
+
+    userId = user.id
 
     // Verify the customer ID belongs to the user
     const { data: userData } = await supabase
@@ -51,7 +57,7 @@ export async function POST(req: Request) {
     console.error("Error creating portal session:", error)
     safeCaptureException(err, {
       context: "stripe_create_portal",
-      userId: user?.id,
+      userId,
       customerId,
     })
     return NextResponse.json(

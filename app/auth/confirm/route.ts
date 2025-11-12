@@ -30,23 +30,37 @@ export async function GET(request: NextRequest) {
     if (!error) {
       console.log("[Auth Confirm] Email verified successfully")
       
+      // Get the authenticated user
+      const { data: { user } } = await supabase.auth.getUser()
+      
       // Check if there's a checkout intent from sign-up
       const checkoutIntent = searchParams.get("checkout")
-      const priceId = searchParams.get("priceId")
+      let priceId = searchParams.get("priceId")
       
+      // If checkout intent is in URL params, use it
       if (checkoutIntent === "true" || next.includes("checkout=true")) {
-        console.log("[Auth Confirm] Redirecting to checkout")
-        // Redirect to checkout verification route which handles auth verification and checkout
+        console.log("[Auth Confirm] Checkout intent from URL params")
         const params = new URLSearchParams()
         if (priceId) {
           params.set("priceId", priceId)
         }
         redirect(`/checkout/verify?${params.toString()}`)
-      } else {
-        console.log("[Auth Confirm] Redirecting to:", next)
-        // redirect user to specified redirect URL or root of app
-        redirect(next)
       }
+      
+      // Otherwise, check user metadata for checkout intent
+      // This handles cases where URL params are lost in email flow
+      if (user?.user_metadata?.checkout_intent === true) {
+        console.log("[Auth Confirm] Checkout intent from user metadata")
+        const params = new URLSearchParams()
+        if (user.user_metadata?.price_id) {
+          params.set("priceId", user.user_metadata.price_id)
+        }
+        redirect(`/checkout/verify?${params.toString()}`)
+      }
+      
+      console.log("[Auth Confirm] No checkout intent, redirecting to:", next)
+      // redirect user to specified redirect URL or root of app
+      redirect(next)
     } else {
       console.error("[Auth Confirm] Verification error:", error)
       // redirect the user to an error page with some instructions

@@ -62,7 +62,7 @@ export function SignUpForm({
         emailRedirectTo = `${emailRedirectTo}?next=${encodeURIComponent(redirectTo)}`
       }
       
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error} = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -70,6 +70,11 @@ export function SignUpForm({
           data: {
             first_name: firstName,
             last_name: lastName,
+            // Store checkout intent in user metadata so we can retrieve it after email confirmation
+            ...(shouldCheckout && {
+              checkout_intent: true,
+              price_id: priceId,
+            }),
           },
         },
       })

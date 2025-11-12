@@ -4,8 +4,6 @@ import { useCheckout } from "@/lib/stripe/hooks"
 import { captureEvent } from "@/lib/posthog/utils"
 import { Button } from "@/components/ui/button"
 import { Sparkles, Loader2 } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
 
 interface UpgradeButtonProps {
   className?: string
@@ -16,21 +14,20 @@ interface UpgradeButtonProps {
 
 export function UpgradeButton({
   className,
-  variant = "default",
   size = "default",
   priceId,
 }: UpgradeButtonProps) {
   const { createCheckout, loading } = useCheckout()
 
   const handleClick = () => {
-    // Track upgrade button click
+    // Track upgrade button click (non-blocking)
     captureEvent("upgrade_button_clicked", {
       price_id: priceId,
       location: "upgrade_button",
     })
     
-    // Let useCheckout handle auth check and redirect
-    // It will redirect to sign-up with checkout intent for better UX
+    // Call createCheckout - it handles loading state and redirect
+    // Loading state is set immediately inside createCheckout for instant feedback
     createCheckout(priceId)
   }
 
@@ -38,7 +35,7 @@ export function UpgradeButton({
     <Button
       onClick={handleClick}
       disabled={loading}
-      className={`${className} !rounded-md`}
+      className={`${className} rounded-md!`}
       variant="cta"
       size={size}
     >

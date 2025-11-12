@@ -24,8 +24,11 @@ export function useCheckout() {
   const [loading, setLoading] = useState(false)
 
   const createCheckout = async (priceId?: string) => {
+    // Set loading immediately for instant feedback (before any async operations)
+    // This ensures users see feedback even on slow connections
+    setLoading(true)
+    
     try {
-      setLoading(true)
       // Client-side check for UX (early redirect, better error messages)
       // Actual security validation happens server-side in the API route
       const supabase = createClient()
@@ -36,6 +39,7 @@ export function useCheckout() {
       if (!user) {
         // Redirect to sign-up with checkout intent - better UX for new users
         // They can sign up or login from there
+        // Keep loading state during redirect - don't reset it
         const params = new URLSearchParams()
         params.set("redirect", "/pricing")
         params.set("checkout", "true")
@@ -44,6 +48,8 @@ export function useCheckout() {
           params.set("priceId", priceId)
         }
         router.push(`/auth/sign-up?${params.toString()}`)
+        // Don't reset loading - let it persist during navigation
+        // Component will unmount anyway, so this is fine
         return
       }
 

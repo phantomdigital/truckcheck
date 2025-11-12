@@ -1,6 +1,7 @@
 "use client"
 
 import { useCheckout } from "@/lib/stripe/hooks"
+import { captureEvent } from "@/lib/posthog/utils"
 import { Button } from "@/components/ui/button"
 import { Sparkles, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"

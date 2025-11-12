@@ -9,16 +9,6 @@ export async function GET(request: NextRequest) {
   const token_hash = searchParams.get("token_hash")
   const type = searchParams.get("type") as EmailOtpType | null
   const next = searchParams.get("next") ?? "/"
-  
-  // Log for debugging
-  console.log("[Auth Confirm] Params:", {
-    token_hash: token_hash ? "present" : "missing",
-    type,
-    next,
-    checkout: searchParams.get("checkout"),
-    priceId: searchParams.get("priceId"),
-    allParams: Object.fromEntries(searchParams.entries())
-  })
 
   if (token_hash && type) {
     const supabase = await createClient()

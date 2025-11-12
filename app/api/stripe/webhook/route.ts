@@ -17,9 +17,24 @@ type InvoiceWithSubscription = Stripe.Invoice & {
 }
 
 // Helper to safely get subscription period end
+// Note: For flexible billing subscriptions, current_period_end is on the subscription item, not the subscription
 function getSubscriptionPeriodEnd(subscription: Stripe.Subscription): number | null {
+  // First check if it's on the subscription itself (standard subscriptions)
   const sub = subscription as SubscriptionWithPeriodEnd
-  return sub.current_period_end ?? null
+  if (sub.current_period_end) {
+    return sub.current_period_end
+  }
+  
+  // For flexible billing, check the subscription item
+  if (subscription.items?.data && subscription.items.data.length > 0) {
+    const firstItem = subscription.items.data[0]
+    const itemWithPeriod = firstItem as typeof firstItem & { current_period_end?: number }
+    if (itemWithPeriod.current_period_end) {
+      return itemWithPeriod.current_period_end
+    }
+  }
+  
+  return null
 }
 
 // Helper to safely get invoice subscription ID
@@ -93,15 +108,8 @@ export async function POST(req: Request) {
           })
           
           const userId = session.metadata?.userId || subscription.metadata?.userId
-          
-          // Log the actual subscription object keys to debug
-          console.log("[Webhook] Subscription keys:", Object.keys(subscription))
-          console.log("[Webhook] Full subscription:", JSON.stringify(subscription, null, 2))
-          
           const periodEnd = getSubscriptionPeriodEnd(subscription)
           console.log("[Webhook] UserId from metadata:", userId)
-          console.log("[Webhook] Session metadata:", JSON.stringify(session.metadata))
-          console.log("[Webhook] Subscription metadata:", JSON.stringify(subscription.metadata))
           console.log("[Webhook] Subscription status:", subscription.status)
           console.log("[Webhook] Current period end:", periodEnd)
           

@@ -1,9 +1,9 @@
-name: Deploy Migrations to Staging
+name: Deploy Migrations to Production
 
 on:
   push:
     branches:
-      - develop
+      - main
   workflow_dispatch:
 
 jobs:
@@ -57,8 +57,8 @@ jobs:
                 echo "3. Other processes using database connections"
                 echo ""
                 echo "Troubleshooting steps:"
-                echo "1. Verify STAGING_PROJECT_ID is correct"
-                echo "2. Verify STAGING_DB_PASSWORD is correct"
+                echo "1. Verify PRODUCTION_PROJECT_ID is correct"
+                echo "2. Verify PRODUCTION_DB_PASSWORD is correct"
                 echo "3. Ensure SUPABASE_ACCESS_TOKEN has correct permissions"
                 echo "4. Check if project is paused in Supabase dashboard"
                 echo "5. Check Supabase dashboard for active connections"
@@ -70,9 +70,9 @@ jobs:
             fi
           done
         env:
-          PROJECT_ID: ${{ secrets.STAGING_PROJECT_ID }}
+          PROJECT_ID: ${{ secrets.PRODUCTION_PROJECT_ID }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
 
       - name: Push database migrations
         run: supabase db push --include-all
@@ -81,16 +81,16 @@ jobs:
 
       # Deploy to Vercel only after migrations succeed
       # This ensures database schema is ready before code goes live
-      - name: Deploy to Vercel (Staging)
+      - name: Deploy to Vercel (Production)
         if: success() # Only deploy if migrations succeeded
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_STAGING_PROJECT_ID }}
-          vercel-args: '--yes' # Auto-confirm deployment
+          vercel-project-id: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
+          vercel-args: '--prod --yes' # Production deployment, auto-confirm
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_STAGING_PROJECT_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
 

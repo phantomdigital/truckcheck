@@ -53,7 +53,7 @@ react:
   data_loading:
     - Data must be loaded on the server first, then on the client
     - No wrapper components for data loading - keep loading logic explicit
-  
+
   skeleton_loading:
     - ALWAYS use Suspense boundaries with skeleton loaders for dynamic server component data
     - Static content (titles, descriptions, headers) should render immediately outside Suspense

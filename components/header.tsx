@@ -1,6 +1,5 @@
 import Link from "next/link"
 import Image from "next/image"
-import { navigationItems } from "@/lib/navigation"
 import { Navigation } from "./header-navigation"
 import { AuthButton } from "./auth-button"
 
@@ -11,7 +10,7 @@ export function Header() {
         <div className="flex h-16 items-center justify-between gap-4">
           <Link href="/" prefetch={true} className="hover:opacity-80 transition-opacity shrink-0">
             <Image
-              src="/TRUCKCHECK_LOGO.PNG"
+              src="/TRUCKCHECK_LOGO.png"
               alt="TruckCheck"
               width={140}
               height={36}

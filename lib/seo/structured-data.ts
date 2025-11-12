@@ -7,7 +7,7 @@ export function getOrganisationSchema() {
     "@type": "Organization",
     name: siteConfig.name,
     url: siteConfig.url,
-    logo: `${siteConfig.url}/TRUCKCHECK_LOGO.PNG`,
+    logo: `${siteConfig.url}/TRUCKCHECK_LOGO.png`,
     description: siteConfig.description,
     address: {
       "@type": "PostalAddress",

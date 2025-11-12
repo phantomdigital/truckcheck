@@ -22,7 +22,7 @@ export async function Footer() {
             {/* About Section with Logo */}
             <div className="space-y-4">
               <Image
-                src="/TRUCKCHECK_LOGO.PNG"
+                src="/TRUCKCHECK_LOGO.png"
                 alt="TruckCheck"
                 width={140}
                 height={40}

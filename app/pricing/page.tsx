@@ -23,7 +23,7 @@ export default async function PricingPage() {
     <>
       <PricingAutoCheckout isAuthenticated={isAuthenticated} />
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-12 sm:py-20 pb-24 sm:pb-24">
-        <div className="max-w-4xl mx-auto space-y-12">
+      <div className="max-w-4xl mx-auto space-y-12">
           {/* Dynamic Content - Shows skeleton while loading */}
           <Suspense fallback={<PricingContentSkeleton />}>
             <PricingContent />

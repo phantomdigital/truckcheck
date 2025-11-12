@@ -20,6 +20,8 @@ jobs:
       - name: Link to Supabase project
         run: |
           # Retry logic for connection issues
+          # Note: Using longer delays to allow Session mode pooler connections to close
+          # Session mode has limited concurrent connections (typically 1-4 on free tier)
           max_attempts=3
           attempt=1
           while [ $attempt -le $max_attempts ]; do
@@ -29,10 +31,14 @@ jobs:
               exit 0
             else
               if [ $attempt -lt $max_attempts ]; then
-                echo "Link failed, retrying in 10 seconds..."
-                sleep 10
+                echo "Link failed (likely Session mode pooler connection limit)"
+                echo "Waiting 30 seconds to allow connections to close before retry..."
+                sleep 30
               else
                 echo "Failed to link after $max_attempts attempts"
+                echo "Error: MaxClientsInSessionMode - Session mode pooler connection limit reached"
+                echo "This is a known limitation of Session mode (port 5432)"
+                echo "Consider upgrading your Supabase plan or using Transaction mode (port 6543)"
                 echo "Debug output should be visible above for troubleshooting"
               fi
               attempt=$((attempt + 1))

@@ -46,28 +46,36 @@ export function LogbookResultEmail({
       <Preview>Work Diary Requirement Analysis - {result.logbookRequired ? 'REQUIRED' : 'NOT REQUIRED'}</Preview>
       <Body style={main}>
         <Container style={container}>
-          {/* Header with Logo */}
+          {/* Header with Logo - Outlook compatible table layout */}
           <Section style={headerSection}>
-            <table style={headerTable} width="100%">
+            <table width="100%" cellPadding="0" cellSpacing="0" border={0} style={headerTable}>
               <tr>
                 <td style={headerLeft}>
-                  <Img
-                    src={logoUrl}
-                    alt="TruckCheck Logo"
-                    width="140"
-                    height="36"
-                    style={logo}
-                  />
-                  <div style={headerTextWrapper}>
-                    <Heading style={h1}>
-                      Work Diary Requirement Analysis
-                    </Heading>
-                    <Text style={subtitle}>
-                     As The Crow Flies - 100km Radius Check - truckcheck.com.au
-                    </Text>
-                  </div>
+                  <table cellPadding="0" cellSpacing="0" border={0}>
+                    <tr>
+                      <td>
+                        <Img
+                          src={logoUrl}
+                          alt="TruckCheck Logo"
+                          width="140"
+                          height="36"
+                          style={logo}
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style={headerTextWrapper}>
+                        <Heading style={h1}>
+                          Work Diary Requirement Analysis
+                        </Heading>
+                        <Text style={subtitle}>
+                          As The Crow Flies - 100km Radius Check - truckcheck.com.au
+                        </Text>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
-                <td style={headerRight}>
+                <td style={headerRight} align="right" valign="top">
                   <Text style={dateText}>{formattedDate}</Text>
                   <Text style={timeText}>{formattedTime}</Text>
                 </td>
@@ -78,44 +86,54 @@ export function LogbookResultEmail({
           {/* Description/Message */}
           {description && (
             <Section style={descriptionSection}>
-              <Text style={descriptionText}>{description}</Text>
+              <table width="100%" cellPadding="0" cellSpacing="0" border={0}>
+                <tr>
+                  <td style={descriptionText}>{description}</td>
+                </tr>
+              </table>
             </Section>
           )}
 
-          {/* Main Result */}
+          {/* Main Result - Outlook compatible */}
           <Section style={resultSection(result.logbookRequired)}>
-            <Heading style={h2(result.logbookRequired)}>
-              Work Diary {result.logbookRequired ? 'REQUIRED' : 'NOT REQUIRED'} 
-            </Heading>
-            <Text style={resultSubtext(result.logbookRequired)}>
-              {result.logbookRequired
-                ? 'Logbook must be maintained for this journey'
-                : 'Logbook not required - within 100km radius'}
-            </Text>
-            <Text style={resultDescription(result.logbookRequired)}>
-              {result.logbookRequired
-                ? 'Based on distance calculations, you are travelling more than 100km from your base. A work diary (logbook) is required under NHVR regulations.'
-                : 'Based on distance calculations, you are travelling within 100km of your base. No work diary (logbook) is required under NHVR regulations.'}
-            </Text>
+            <table width="100%" cellPadding="0" cellSpacing="0" border={0}>
+              <tr>
+                <td>
+                  <Heading style={h2(result.logbookRequired)}>
+                    Work Diary {result.logbookRequired ? 'REQUIRED' : 'NOT REQUIRED'}
+                  </Heading>
+                  <Text style={resultSubtext(result.logbookRequired)}>
+                    {result.logbookRequired
+                      ? 'Logbook must be maintained for this journey'
+                      : 'Logbook not required - within 100km radius'}
+                  </Text>
+                  <Text style={resultDescription(result.logbookRequired)}>
+                    {result.logbookRequired
+                      ? 'Based on distance calculations, you are travelling more than 100km from your base. A work diary (logbook) is required under NHVR regulations.'
+                      : 'Based on distance calculations, you are travelling within 100km of your base. No work diary (logbook) is required under NHVR regulations.'}
+                  </Text>
+                </td>
+              </tr>
+            </table>
           </Section>
 
           {/* Route Information */}
           <Section style={section}>
             <Heading style={h3}>Route Information</Heading>
-            <table style={infoTable} width="100%">
+            <table width="100%" cellPadding="0" cellSpacing="0" border={0} style={infoTable}>
               <tr style={infoRow}>
-                <td style={infoLabel}>
+                <td style={infoLabel} width="140">
                   <Text style={infoLabelText}>Base Location:</Text>
                 </td>
-                <td style={infoValue}>
+                <td style={infoValue} align="right">
                   <Text style={infoValueText}>{result.baseLocation.placeName}</Text>
                 </td>
               </tr>
               <tr style={infoRow}>
-                <td style={infoLabel}>
+                <td style={infoLabel} width="140">
                   <Text style={infoLabelText}>Total Stops:</Text>
                 </td>
-                <td style={infoValue}>
+                <td style={infoValue} align="right">
                   <Text style={infoValueText}>
                     {result.stops.length} {result.stops.length === 1 ? 'stop' : 'stops'}
                   </Text>
@@ -123,12 +141,12 @@ export function LogbookResultEmail({
               </tr>
               {result.stops.map((stop, index) => (
                 <tr key={stop.id} style={infoRow}>
-                  <td style={infoLabel}>
+                  <td style={infoLabel} width="140">
                     <Text style={infoLabelText}>
                       Stop {index + 1}{index === result.stops.length - 1 ? ' (Final):' : ':'}
                     </Text>
                   </td>
-                  <td style={infoValue}>
+                  <td style={infoValue} align="right">
                     <Text style={infoValueText}>
                       {stop.location?.placeName || stop.address}
                     </Text>
@@ -138,24 +156,32 @@ export function LogbookResultEmail({
             </table>
           </Section>
 
-          {/* Map Snapshot */}
+          {/* Map Snapshot - Constrained size for Outlook */}
           {mapImageUrl && (
             <Section style={section}>
               <Heading style={h3}>Route Map</Heading>
-              <Img
-                src={mapImageUrl}
-                alt="Route map"
-                style={mapImage}
-              />
+              <table width="100%" cellPadding="0" cellSpacing="0" border={0}>
+                <tr>
+                  <td align="center" style={mapWrapper}>
+                    <Img
+                      src={mapImageUrl}
+                      alt="Route map"
+                      width="550"
+                      height="auto"
+                      style={mapImage}
+                    />
+                  </td>
+                </tr>
+              </table>
             </Section>
           )}
 
           {/* Distance Summary */}
           <Section style={section}>
             <Heading style={h3}>Distance Summary</Heading>
-            <table style={distanceTable} width="100%">
+            <table width="100%" cellPadding="0" cellSpacing="0" border={0} style={distanceTable}>
               <tr>
-                <td style={result.maxDistanceFromBase !== null ? distanceCard : distanceCardFull}>
+                <td style={distanceCard} width={result.maxDistanceFromBase !== null ? "48%" : "100%"}>
                   <Text style={distanceLabel}>Crow Flies Distance</Text>
                   <Text style={distanceValue}>{result.distance.toFixed(1)} km</Text>
                   <Text style={distanceDescription}>
@@ -163,7 +189,7 @@ export function LogbookResultEmail({
                   </Text>
                 </td>
                 {result.maxDistanceFromBase !== null && (
-                  <td style={distanceCard}>
+                  <td style={distanceCard} width="48%">
                     <Text style={distanceLabel}>Furthest Point from Base</Text>
                     <Text style={distanceValue}>{result.maxDistanceFromBase.toFixed(1)} km</Text>
                     <Text style={distanceDescription}>
@@ -188,9 +214,9 @@ export function LogbookResultEmail({
 
           {/* Footer */}
           <Section style={footerSection}>
-            <table style={footerTable} width="100%">
+            <table width="100%" cellPadding="0" cellSpacing="0" border={0} style={footerTable}>
               <tr>
-                <td style={footerTextColumn}>
+                <td style={footerTextColumn} valign="top">
                   <Text style={footerText}>
                     <strong>Disclaimer:</strong> This tool is for reference only and should not be considered legal advice. Always consult the official NHVR regulations and guidelines. While we strive for accuracy, we cannot guarantee the results are error-free. Use at your own discretion.
                   </Text>
@@ -198,7 +224,7 @@ export function LogbookResultEmail({
                     Generated by truckcheck.com.au/logbook-calculator - Work Diary Requirement Calculator
                   </Text>
                 </td>
-                <td style={footerLogoColumn}>
+                <td style={footerLogoColumn} align="right" valign="top" width="112">
                   <Img
                     src={logoUrl}
                     alt="TruckCheck"
@@ -216,9 +242,13 @@ export function LogbookResultEmail({
   )
 }
 
+// Outlook-compatible styles - all inline, no flexbox, table-based layouts
 const main = {
   backgroundColor: '#ffffff',
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  margin: '0',
+  padding: '0',
+  width: '100%',
 }
 
 const container = {
@@ -226,6 +256,7 @@ const container = {
   margin: '0 auto',
   padding: '0',
   maxWidth: '600px',
+  width: '100%',
 }
 
 const headerSection = {
@@ -237,27 +268,32 @@ const headerSection = {
 const headerTable = {
   width: '100%',
   borderCollapse: 'collapse' as const,
+  border: '0',
 }
 
 const headerLeft = {
   verticalAlign: 'top',
+  padding: '0',
 }
 
 const headerTextWrapper = {
   marginTop: '8px',
+  padding: '0',
 }
 
 const headerRight = {
-  verticalAlign: 'top',
+  verticalAlign: 'top' as const,
   textAlign: 'right' as const,
   width: '120px',
+  padding: '0',
 }
 
 const logo = {
   maxHeight: '48px',
-  width: 'auto',
-  objectFit: 'contain' as const,
-  display: 'block' as const,
+  width: '140px',
+  height: '36px',
+  display: 'block',
+  border: '0',
 }
 
 const h1 = {
@@ -267,6 +303,7 @@ const h1 = {
   lineHeight: '1.2',
   margin: '0 0 4px 0',
   padding: '0',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
 
 const subtitle = {
@@ -275,6 +312,7 @@ const subtitle = {
   lineHeight: '1.4',
   margin: '0',
   padding: '0',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
 
 const dateText = {
@@ -285,6 +323,7 @@ const dateText = {
   margin: '0 0 2px 0',
   padding: '0',
   textAlign: 'right' as const,
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
 
 const timeText = {
@@ -294,6 +333,7 @@ const timeText = {
   margin: '0',
   padding: '0',
   textAlign: 'right' as const,
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
 
 const descriptionSection = {
@@ -310,7 +350,8 @@ const descriptionText = {
   lineHeight: '1.6',
   margin: '0',
   padding: '0',
-  whiteSpace: 'pre-wrap' as const,
+  whiteSpace: 'pre-wrap',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
 
 const resultSection = (logbookRequired: boolean) => ({
@@ -330,6 +371,7 @@ const h2 = (logbookRequired: boolean) => ({
   lineHeight: '1.3',
   margin: '0 0 4px 0',
   padding: '0',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 })
 
 const resultSubtext = (logbookRequired: boolean) => ({
@@ -339,6 +381,7 @@ const resultSubtext = (logbookRequired: boolean) => ({
   lineHeight: '1.4',
   margin: '0 0 8px 0',
   padding: '0',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 })
 
 const resultDescription = (logbookRequired: boolean) => ({
@@ -347,6 +390,7 @@ const resultDescription = (logbookRequired: boolean) => ({
   lineHeight: '1.5',
   margin: '0',
   padding: '0',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 })
 
 const section = {
@@ -362,11 +406,13 @@ const h3 = {
   margin: '0 0 12px 0',
   paddingBottom: '6px',
   borderBottom: '1px solid #d1d5db',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
 
 const infoTable = {
   width: '100%',
   borderCollapse: 'collapse' as const,
+  border: '0',
 }
 
 const infoRow = {
@@ -378,13 +424,17 @@ const infoLabel = {
   verticalAlign: 'top',
   paddingBottom: '6px',
   paddingTop: '6px',
+  paddingLeft: '0',
+  paddingRight: '12px',
 }
 
 const infoValue = {
-  verticalAlign: 'top',
+  verticalAlign: 'top' as const,
   textAlign: 'right' as const,
   paddingBottom: '6px',
   paddingTop: '6px',
+  paddingLeft: '12px',
+  paddingRight: '0',
 }
 
 const infoLabelText = {
@@ -394,6 +444,7 @@ const infoLabelText = {
   lineHeight: '1.5',
   margin: '0',
   padding: '0',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
 
 const infoValueText = {
@@ -402,21 +453,29 @@ const infoValueText = {
   lineHeight: '1.5',
   margin: '0',
   padding: '0',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+}
+
+const mapWrapper = {
+  padding: '0',
+  margin: '0',
 }
 
 const mapImage = {
+  maxWidth: '550px',
   width: '100%',
-  maxWidth: '600px',
   height: 'auto',
   borderRadius: '8px',
   border: '1px solid #d1d5db',
-  display: 'block' as const,
+  display: 'block',
+  margin: '0 auto',
 }
 
 const distanceTable = {
   width: '100%',
   borderCollapse: 'separate' as const,
-  borderSpacing: '0 12px',
+  borderSpacing: '0',
+  border: '0',
 }
 
 const distanceCard = {
@@ -424,8 +483,7 @@ const distanceCard = {
   padding: '12px',
   borderRadius: '8px',
   border: '1px solid #d1d5db',
-  verticalAlign: 'top' as const,
-  width: '48%',
+  verticalAlign: 'top',
 }
 
 const distanceCardFull = {
@@ -433,8 +491,7 @@ const distanceCardFull = {
   padding: '12px',
   borderRadius: '8px',
   border: '1px solid #d1d5db',
-  verticalAlign: 'top' as const,
-  width: '100%',
+  verticalAlign: 'top',
 }
 
 const distanceLabel = {
@@ -444,6 +501,7 @@ const distanceLabel = {
   lineHeight: '1.4',
   margin: '0 0 4px 0',
   padding: '0',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
 
 const distanceValue = {
@@ -453,6 +511,7 @@ const distanceValue = {
   lineHeight: '1.2',
   margin: '0 0 2px 0',
   padding: '0',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
 
 const distanceDescription = {
@@ -461,6 +520,7 @@ const distanceDescription = {
   lineHeight: '1.4',
   margin: '0',
   padding: '0',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
 
 const footerSection = {
@@ -472,6 +532,7 @@ const footerSection = {
 const footerTable = {
   width: '100%',
   borderCollapse: 'collapse' as const,
+  border: '0',
 }
 
 const footerTextColumn = {
@@ -480,9 +541,9 @@ const footerTextColumn = {
 }
 
 const footerLogoColumn = {
-  width: '112px',
-  verticalAlign: 'top',
+  verticalAlign: 'top' as const,
   textAlign: 'right' as const,
+  width: '112px',
 }
 
 const footerText = {
@@ -491,6 +552,7 @@ const footerText = {
   lineHeight: '1.5',
   margin: '0 0 8px 0',
   padding: '0',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
 
 const footerCredit = {
@@ -499,15 +561,18 @@ const footerCredit = {
   lineHeight: '1.4',
   margin: '0',
   padding: '0',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
 
 const footerLogo = {
   maxHeight: '32px',
-  width: 'auto',
+  width: '112px',
+  height: '29px',
   objectFit: 'contain' as const,
   opacity: '0.6',
   display: 'block' as const,
   marginLeft: 'auto',
+  border: '0',
 }
 
 export default LogbookResultEmail

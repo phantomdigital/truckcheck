@@ -45,7 +45,8 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
   const [isOpen, setIsOpen] = useState(false)
   const [emailTo, setEmailTo] = useState<string[]>([])
   const [emailToInput, setEmailToInput] = useState("")
-  const [emailCc, setEmailCc] = useState("")
+  const [emailCc, setEmailCc] = useState<string[]>([])
+  const [emailCcInput, setEmailCcInput] = useState("")
   const [emailDescription, setEmailDescription] = useState("")
   const [emailSubject, setEmailSubject] = useState("Work Diary Requirement Check Result")
   const [isSendingEmail, setIsSendingEmail] = useState(false)
@@ -382,6 +383,69 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
     setEmailTo(emailTo.filter(email => email !== emailToRemove))
   }
 
+  const handleEmailCcInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setEmailCcInput(value)
+
+    // Check if user typed comma or semicolon
+    if (value.endsWith(',') || value.endsWith(';')) {
+      const email = value.slice(0, -1).trim()
+      if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (emailRegex.test(email)) {
+          if (emailCc.length < MAX_CC_EMAILS) {
+            if (!emailCc.includes(email)) {
+              setEmailCc([...emailCc, email])
+              setEmailCcInput("")
+            } else {
+              toast.error('Email already added')
+              setEmailCcInput("")
+            }
+          } else {
+            toast.error(`Maximum ${MAX_CC_EMAILS} CC recipients allowed`)
+            setEmailCcInput("")
+          }
+        } else {
+          toast.error('Invalid email address')
+          setEmailCcInput("")
+        }
+      } else {
+        setEmailCcInput("")
+      }
+    }
+  }
+
+  const handleEmailCcInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && emailCcInput.trim()) {
+      e.preventDefault()
+      const email = emailCcInput.trim()
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (emailRegex.test(email)) {
+        if (emailCc.length < MAX_CC_EMAILS) {
+          if (!emailCc.includes(email)) {
+            setEmailCc([...emailCc, email])
+            setEmailCcInput("")
+          } else {
+            toast.error('Email already added')
+            setEmailCcInput("")
+          }
+        } else {
+          toast.error(`Maximum ${MAX_CC_EMAILS} CC recipients allowed`)
+          setEmailCcInput("")
+        }
+      } else {
+        toast.error('Invalid email address')
+      }
+    } else if (e.key === 'Backspace' && emailCcInput === '' && emailCc.length > 0) {
+      // Remove last badge when backspace on empty input
+      setEmailCc(emailCc.slice(0, -1))
+    }
+  }
+
+  const removeEmailCc = (emailToRemove: string) => {
+    setEmailCc(emailCc.filter(email => email !== emailToRemove))
+  }
+
   const handleEmailSend = async () => {
     // Check if there are any "To" emails
     if (emailTo.length === 0 && !emailToInput.trim()) {
@@ -421,15 +485,28 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
       return
     }
 
-    // Parse and validate CC emails
-    const ccEmails = parseEmailList(emailCc)
-    if (ccEmails.length > MAX_CC_EMAILS) {
-      toast.error(`Maximum ${MAX_CC_EMAILS} CC recipients allowed`)
-      return
+    // Check if there's text in CC input, try to add it
+    if (emailCcInput.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (emailRegex.test(emailCcInput.trim())) {
+        if (emailCc.length < MAX_CC_EMAILS) {
+          if (!emailCc.includes(emailCcInput.trim())) {
+            setEmailCc([...emailCc, emailCcInput.trim()])
+            setEmailCcInput("")
+          }
+        } else {
+          toast.error(`Maximum ${MAX_CC_EMAILS} CC recipients allowed`)
+          return
+        }
+      } else {
+        toast.error('Please enter a valid CC email address')
+        return
+      }
     }
 
-    if (ccEmails.length > 0) {
-      const ccValidation = validateEmailList(ccEmails)
+    // Validate all CC emails
+    if (emailCc.length > 0) {
+      const ccValidation = validateEmailList(emailCc)
       if (!ccValidation.valid) {
         toast.error(ccValidation.error || 'Invalid CC email address')
         return
@@ -457,7 +534,7 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
       
       const response = await sendLogbookEmail({
         to: emailTo,
-        cc: ccEmails.length > 0 ? ccEmails : undefined,
+        cc: emailCc.length > 0 ? emailCc : undefined,
         subject: emailSubject,
         description: emailDescription.trim() || undefined,
         result: result,
@@ -471,7 +548,8 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
       toast.success('Email sent successfully!')
       setEmailTo([])
       setEmailToInput('')
-      setEmailCc('')
+      setEmailCc([])
+      setEmailCcInput('')
       setEmailDescription('')
       setIsOpen(false)
     } catch (error) {
@@ -633,22 +711,44 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
                 <div className="space-y-2">
                   <Label htmlFor="email-cc">
                     CC (Optional)
-                    {emailCc && (
+                    {emailCc.length > 0 && (
                       <span className="text-xs text-muted-foreground ml-2">
-                        {parseEmailList(emailCc).length}/{MAX_CC_EMAILS}
+                        {emailCc.length}/{MAX_CC_EMAILS}
                       </span>
                     )}
                   </Label>
-                  <Input
-                    id="email-cc"
-                    type="text"
-                    placeholder="cc1@example.com, cc2@example.com"
-                    value={emailCc}
-                    onChange={(e) => setEmailCc(e.target.value)}
-                    disabled={isSendingEmail}
-                  />
+                  <div className="flex flex-wrap gap-2 p-2 min-h-[42px] border border-input rounded-md bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                    {emailCc.map((email) => (
+                      <Badge
+                        key={email}
+                        variant="secondary"
+                        className="flex items-center gap-1 pr-1"
+                      >
+                        <span className="text-xs">{email}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeEmailCc(email)}
+                          disabled={isSendingEmail}
+                          className="ml-1 rounded-full hover:bg-secondary-foreground/20 p-0.5"
+                          aria-label={`Remove ${email}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                    <Input
+                      id="email-cc"
+                      type="text"
+                      placeholder={emailCc.length === 0 ? "cc1@example.com" : ""}
+                      value={emailCcInput}
+                      onChange={handleEmailCcInputChange}
+                      onKeyDown={handleEmailCcInputKeyDown}
+                      disabled={isSendingEmail || emailCc.length >= MAX_CC_EMAILS}
+                      className="flex-1 min-w-[200px] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto"
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    Separate multiple emails with commas or semicolons (max {MAX_CC_EMAILS})
+                    Type email and press comma, semicolon, or Enter to add (max {MAX_CC_EMAILS})
                   </p>
                 </div>
                 <div className="space-y-2">

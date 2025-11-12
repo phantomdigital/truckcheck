@@ -84,15 +84,42 @@ export async function sendLogbookEmail({
   }
 
   try {
+    // If mapImageUrl is a base64 data URL, upload it to our domain first
+    let finalMapImageUrl = mapImageUrl
+    if (mapImageUrl && mapImageUrl.startsWith('data:image/')) {
+      try {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://truckcheck.com.au'
+        const uploadResponse = await fetch(`${siteUrl}/api/upload-map-image`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imageData: mapImageUrl }),
+        })
+
+        if (uploadResponse.ok) {
+          const { url } = await uploadResponse.json()
+          finalMapImageUrl = url
+        } else {
+          console.error('Failed to upload map image, using base64 fallback')
+          // Continue with base64 if upload fails
+        }
+      } catch (uploadError) {
+        console.error('Error uploading map image:', uploadError)
+        // Continue with base64 if upload fails
+      }
+    }
+
     // Send email with Resend and React Email
     const { data, error } = await resend.emails.send({
-      from: 'TruckCheck <noreply@m.truckcheck.com.au>',
+      from: 'TruckCheck <support@m.truckcheck.com.au>',
+      replyTo: 'admin@truckcheck.com.au',
       to: toEmails,
       cc: cc && cc.length > 0 ? cc : undefined,
       subject: subject || 'NHVR Logbook Check Result',
       react: LogbookResultEmail({
         result: result,
-        mapImageUrl: mapImageUrl,
+        mapImageUrl: finalMapImageUrl,
         description: description,
         generatedDate: new Date().toLocaleDateString("en-AU", {
           weekday: "long",

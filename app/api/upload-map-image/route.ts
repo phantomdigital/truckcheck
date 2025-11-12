@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile } from 'fs/promises'
-import { join } from 'path'
-import { existsSync, mkdirSync } from 'fs'
+import { uploadMapImage } from '@/lib/email/upload-image'
+import { getCachedUser } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,53 +13,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate it's a base64 data URL
-    if (!imageData.startsWith('data:image/')) {
+    // Get authenticated user
+    const user = await getCachedUser()
+    if (!user) {
       return NextResponse.json(
-        { error: 'Invalid image format. Expected base64 data URL' },
-        { status: 400 }
+        { error: 'Unauthorized' },
+        { status: 401 }
       )
     }
 
-    // Extract image format and data
-    const matches = imageData.match(/^data:image\/(\w+);base64,(.+)$/)
-    if (!matches) {
+    const signedUrl = await uploadMapImage(imageData, user.id)
+
+    if (!signedUrl) {
       return NextResponse.json(
-        { error: 'Invalid base64 image format' },
-        { status: 400 }
+        { error: 'Failed to upload image' },
+        { status: 500 }
       )
     }
 
-    const [, format, base64Data] = matches
-    const allowedFormats = ['jpeg', 'jpg', 'png']
-    if (!allowedFormats.includes(format.toLowerCase())) {
-      return NextResponse.json(
-        { error: `Invalid image format. Allowed: ${allowedFormats.join(', ')}` },
-        { status: 400 }
-      )
-    }
-
-    // Convert base64 to buffer
-    const buffer = Buffer.from(base64Data, 'base64')
-
-    // Generate unique filename
-    const filename = `map-${Date.now()}-${Math.random().toString(36).substring(7)}.${format === 'jpg' ? 'jpeg' : format}`
-    const publicDir = join(process.cwd(), 'public', 'map-images')
-
-    // Ensure directory exists
-    if (!existsSync(publicDir)) {
-      mkdirSync(publicDir, { recursive: true })
-    }
-
-    // Write file
-    const filePath = join(publicDir, filename)
-    await writeFile(filePath, buffer)
-
-    // Return URL - use main site URL for hosting images
+    // Return proxied URL through our domain
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://truckcheck.com.au'
-    const imageUrl = `${siteUrl}/map-images/${filename}`
+    const proxiedUrl = `${siteUrl}/api/proxy-map-image?url=${encodeURIComponent(signedUrl)}`
 
-    return NextResponse.json({ url: imageUrl })
+    return NextResponse.json({ url: proxiedUrl })
   } catch (error) {
     console.error('Error uploading map image:', error)
     return NextResponse.json(

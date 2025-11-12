@@ -4,6 +4,7 @@ import { Resend } from 'resend'
 import { LogbookResultEmail } from '@/emails/logbook-result'
 import { getCachedUser } from '@/lib/supabase/server'
 import { getSubscriptionStatus } from '@/lib/stripe/actions'
+import { uploadMapImage } from '@/lib/email/upload-image'
 import type { CalculationResult } from '@/lib/logbook/types'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -84,28 +85,16 @@ export async function sendLogbookEmail({
   }
 
   try {
-    // If mapImageUrl is a base64 data URL, upload it to our domain first
+    // If mapImageUrl is a base64 data URL, upload it to Supabase Storage first
     let finalMapImageUrl = mapImageUrl
     if (mapImageUrl && mapImageUrl.startsWith('data:image/')) {
-      try {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://truckcheck.com.au'
-        const uploadResponse = await fetch(`${siteUrl}/api/upload-map-image`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ imageData: mapImageUrl }),
-        })
-
-        if (uploadResponse.ok) {
-          const { url } = await uploadResponse.json()
-          finalMapImageUrl = url
-        } else {
-          console.error('Failed to upload map image, using base64 fallback')
-          // Continue with base64 if upload fails
-        }
-      } catch (uploadError) {
-        console.error('Error uploading map image:', uploadError)
+      const uploadedUrl = await uploadMapImage(mapImageUrl, user.id)
+      if (uploadedUrl) {
+        // Proxy the Supabase URL through our domain
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://staging.truckcheck.com.au'
+        finalMapImageUrl = `${siteUrl}/api/proxy-map-image?url=${encodeURIComponent(uploadedUrl)}`
+      } else {
+        console.error('Failed to upload map image, using base64 fallback')
         // Continue with base64 if upload fails
       }
     }

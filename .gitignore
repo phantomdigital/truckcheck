@@ -44,6 +44,3 @@ next-env.d.ts
 .env.sentry-build-plugin
 
 .env.local
-
-# Generated map images
-/public/map-images

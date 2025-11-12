@@ -11,7 +11,7 @@ export function Header() {
         <div className="flex h-16 items-center justify-between gap-4">
           <Link href="/" prefetch={true} className="hover:opacity-80 transition-opacity shrink-0">
             <Image
-              src="/logo.png"
+              src="/TRUCKCHECK_LOGO.PNG"
               alt="TruckCheck"
               width={140}
               height={36}

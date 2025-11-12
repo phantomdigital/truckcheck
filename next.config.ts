@@ -60,7 +60,7 @@ export default withSentryConfig(nextConfig, {
 
   org: "truckcheck",
 
-  project: "javascript-nextjs",
+  project: "truckcheck",
 
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,

@@ -4,9 +4,12 @@ import { safeCaptureException } from "@/lib/sentry/utils"
 import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {
+  let userId: string | undefined
+  let priceId: string | undefined
+  
   try {
     const body = await req.json()
-    const { priceId } = body
+    priceId = body.priceId
     
     const supabase = await createClient()
     const {
@@ -19,6 +22,8 @@ export async function POST(req: Request) {
         { status: 401 }
       )
     }
+
+    userId = user.id
 
     const session = await createCheckoutSession(
       user.id,
@@ -34,7 +39,7 @@ export async function POST(req: Request) {
     console.error("Error creating checkout session:", error)
     safeCaptureException(err, {
       context: "stripe_create_checkout",
-      userId: user?.id,
+      userId,
       priceId,
     })
     return NextResponse.json(

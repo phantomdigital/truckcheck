@@ -11,7 +11,7 @@ const isDevelopment = process.env.NODE_ENV === "development";
 // Only initialise Sentry in production
 if (!isDevelopment) {
   Sentry.init({
-    dsn: process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN || "https://0656b5986de4f6b12b0d22ff8db59662@o4510353855348736.ingest.us.sentry.io/4510353856004096",
+    dsn: process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN || "https://ba38cc81a62baab7730d727b8717db76@o4510353855348736.ingest.us.sentry.io/4510353913610240",
 
     // Set the environment
     environment: process.env.NODE_ENV || "production",
@@ -29,7 +29,8 @@ if (!isDevelopment) {
     // Filter out localhost requests
     beforeSend(event, hint) {
       // Check if the request is from localhost
-      const request = hint.request;
+      // Request info is available in event.request or event.contexts
+      const request = (event as any).request;
       if (request?.headers) {
         const host = request.headers.host || request.headers["x-forwarded-host"];
         if (

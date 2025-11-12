@@ -61,18 +61,48 @@ react:
     - Pattern: Extract data-fetching components into separate server components, wrap in Suspense
     - Create skeleton components that match the structure of the actual components
     - Place skeleton components in the same folder as the components they represent (e.g., components/account/account-skeletons.tsx)
-    - Example structure:
-      ```tsx
-      // page.tsx - Static content loads immediately
-      <div>
-        <h1>Page Title</h1> {/* Static */}
-        <Suspense fallback={<ContentSkeleton />}>
-          <DynamicContent /> {/* Fetches data */}
-        </Suspense>
-      </div>
-      ```
     - Benefits: Better perceived performance, progressive loading, improved UX
     - Apply to: Account pages, pricing pages, checkout success pages, any page with database queries
+  
+  page_structure:
+    - Page components should be async Server Components by default
+    - Separate static content (headers, titles, descriptions) into separate components or render directly
+    - Keep static content outside Suspense boundaries for immediate rendering
+    - Wrap all data-fetching components in Suspense boundaries with skeleton fallbacks
+    - Pattern for pages with static headers:
+      ```tsx
+      // Static header component (can be separate or inline)
+      function PageHeader() {
+        return (
+          <header>
+            <h1>Page Title</h1>
+            <p>Description</p>
+          </header>
+        )
+      }
+      
+      // Main page component - async Server Component
+      export default async function Page() {
+        // Auth check for protected pages (if needed)
+        // const user = await getCachedUser()
+        // if (!user) redirect("/auth/login")
+        
+        return (
+          <>
+            {/* Static content - renders immediately */}
+            <PageHeader />
+            
+            {/* Dynamic content - shows skeleton while loading */}
+            <Suspense fallback={<ContentSkeleton />}>
+              <DynamicContent />
+            </Suspense>
+          </>
+        )
+      }
+      ```
+    - For protected routes: Check auth at page level using getCachedUser(), redirect if unauthorized
+    - For public routes: No auth check needed, but subscription status can still be fetched for feature gating
+    - Use React cache() for getCachedUser() and getSubscriptionStatus() to avoid duplicate queries
 
 ## Styling Rules
 
@@ -250,11 +280,15 @@ stripe:
     - Wrap subscription data fetching in Suspense boundaries with skeleton loaders
   
   server_components:
+    - Page components (page.tsx) should be async Server Components
     - Fetch all data at the page level (page.tsx) before rendering client components
     - Server Actions should only be called from Server Components for data fetching
     - Pass fetched data as props to client components - never fetch in client components
     - Extract data-fetching logic into separate server components wrapped in Suspense
     - Keep static page structure (titles, headers) outside Suspense for immediate rendering
+    - Pattern: Static content renders immediately, dynamic content loads progressively via Suspense
+    - For protected routes: Use getCachedUser() at page level, redirect if unauthorized (follows Supabase/Next.js best practices)
+    - For public routes: No auth check, but can still fetch subscription status for feature gating
   
   mutations:
     - Client components can call Server Actions directly for mutations

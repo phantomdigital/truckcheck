@@ -29,12 +29,8 @@ export function DepotSelector({
   const { depots, loading, refreshDepots } = useDepots()
   const [isOpen, setIsOpen] = useState(false)
 
-  // Fetch depots when popover opens
-  useEffect(() => {
-    if (isOpen) {
-      refreshDepots()
-    }
-  }, [isOpen, refreshDepots])
+  // Depots are prefetched when DepotProvider mounts (for Pro users)
+  // No need to fetch on popover open - they're already loaded
 
   const handleSaveDepot = async (location: GeocodeResult) => {
     const result = await saveDepot({

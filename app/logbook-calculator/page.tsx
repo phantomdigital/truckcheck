@@ -35,8 +35,8 @@ export const metadata: Metadata = generatePageMetadata({
   ],
 })
 
-export default function NHVRLogbookCheckerPage() {
-  // Generate structured data for this specific tool (static, no async needed)
+// Generate structured data for this specific tool (static, no async needed)
+function PageHeader() {
   const structuredData = combineSchemas(
     getNHVRCalculatorSchema(),
     getNHVRFAQSchema(),
@@ -90,8 +90,19 @@ export default function NHVRLogbookCheckerPage() {
           </div>
         </div>
       </header>
+    </>
+  )
+}
 
-      {/* Dynamic Content - Shows skeleton while loading subscription status and initializing */}
+export default async function NHVRLogbookCheckerPage() {
+  // Public page - no auth required
+  // Static content renders immediately, dynamic content loads via Suspense
+  return (
+    <>
+      {/* Static header - renders immediately */}
+      <PageHeader />
+
+      {/* Dynamic Content - Shows skeleton while loading subscription status */}
       <Suspense fallback={
         <div className="w-full max-w-[100rem] mx-auto px-4 lg:px-8 py-6">
           <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">

@@ -20,9 +20,10 @@ export function PricingContentSkeleton() {
                 <CardTitle>
                   <Skeleton className="h-7 w-32 mx-auto" />
                 </CardTitle>
-                <CardDescription>
+                {/* Use div instead of CardDescription to avoid nesting div inside p */}
+                <div className="text-sm text-muted-foreground">
                   <Skeleton className="h-4 w-48 mx-auto" />
-                </CardDescription>
+                </div>
                 <div className="mt-4 flex items-center justify-center gap-2">
                   <Skeleton className="h-10 w-24" />
                   <Skeleton className="h-4 w-16" />

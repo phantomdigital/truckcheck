@@ -14,22 +14,32 @@ export const metadata: Metadata = generatePageMetadata({
   path: "/pricing",
 })
 
-export default async function PricingPage() {
-  // Check authentication for PricingAutoCheckout (doesn't block page render)
+// Component to check auth status for PricingAutoCheckout (non-blocking)
+async function PricingAutoCheckoutWrapper() {
   const { userId } = await getSubscriptionStatus()
   const isAuthenticated = userId !== null
+  return <PricingAutoCheckout isAuthenticated={isAuthenticated} />
+}
 
+export default async function PricingPage() {
+  // Render immediately - no blocking data fetching
+  // PricingContent has its own header that changes based on subscription status
   return (
     <>
-      <PricingAutoCheckout isAuthenticated={isAuthenticated} />
+      {/* Auto checkout wrapper - loads in background */}
+      <Suspense fallback={null}>
+        <PricingAutoCheckoutWrapper />
+      </Suspense>
+      
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-12 sm:py-20 pb-24 sm:pb-24">
-      <div className="max-w-4xl mx-auto space-y-12">
-          {/* Dynamic Content - Shows skeleton while loading */}
+        <div className="max-w-4xl mx-auto space-y-12">
+          {/* Dynamic Content - Shows skeleton (includes header) while loading */}
           <Suspense fallback={<PricingContentSkeleton />}>
             <PricingContent />
           </Suspense>
         </div>
       </div>
+      
       {/* Sticky CTA - Dynamic, shows skeleton while loading */}
       <Suspense fallback={null}>
         <PricingCta />

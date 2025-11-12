@@ -7,7 +7,7 @@ export async function LogbookCheckerWrapper() {
   const { isPro } = await getSubscriptionStatus()
 
   return (
-    <DepotProvider>
+    <DepotProvider isPro={isPro}>
       <LogbookChecker isPro={isPro} />
     </DepotProvider>
   )

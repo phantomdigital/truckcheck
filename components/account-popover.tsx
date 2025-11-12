@@ -10,6 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { LogoutButton } from "./logout-button"
+import { useCustomerPortal } from "@/lib/stripe/hooks"
 import { User, Crown, Calendar, CreditCard, Settings, ChevronDown } from "lucide-react"
 
 interface AccountPopoverProps {
@@ -24,11 +25,17 @@ interface AccountPopoverProps {
 
 export function AccountPopover({ user, isPro, subscriptionEndDate }: AccountPopoverProps) {
   const [open, setOpen] = useState(false)
+  const { createPortal, loading: portalLoading } = useCustomerPortal()
   
   // Display name or email
   const displayName = user.firstName && user.lastName 
     ? `${user.firstName} ${user.lastName}`
     : user.firstName || user.email
+
+  const handleManageSubscription = async () => {
+    setOpen(false) // Close popover immediately
+    await createPortal()
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -103,7 +110,7 @@ export function AccountPopover({ user, isPro, subscriptionEndDate }: AccountPopo
               className="w-full justify-start px-3 h-9"
               onClick={() => setOpen(false)}
             >
-              <Link href="/account" className="inline-flex items-center">
+              <Link href="/account" prefetch={true} className="inline-flex items-center">
                 <Settings className="mr-2 h-4 w-4" />
                 Account Settings
               </Link>
@@ -111,16 +118,14 @@ export function AccountPopover({ user, isPro, subscriptionEndDate }: AccountPopo
 
             {isPro && (
               <Button
-                asChild
                 variant="ghost"
                 size="sm"
                 className="w-full justify-start px-3 h-9"
-                onClick={() => setOpen(false)}
+                onClick={handleManageSubscription}
+                disabled={portalLoading}
               >
-                <Link href="/account#subscription" className="inline-flex items-center">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Manage Subscription
-                </Link>
+                <CreditCard className="mr-2 h-4 w-4" />
+                {portalLoading ? "Loading..." : "Manage Subscription"}
               </Button>
             )}
 

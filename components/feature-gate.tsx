@@ -59,7 +59,7 @@ export function UpgradePrompt({ className }: { className?: string }) {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button onClick={createCheckout} disabled={loading} className="flex-1">
+          <Button onClick={() => createCheckout()} disabled={loading} className="flex-1">
             <Sparkles className="h-4 w-4 mr-2" />
             {loading ? "Loading..." : "Upgrade to Pro - $18/month"}
           </Button>

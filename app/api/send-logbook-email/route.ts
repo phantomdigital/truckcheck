@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { Resend } from 'resend'
+import { LogbookResultEmail } from '@/emails/logbook-result'
 
-// TODO: Install and configure these packages:
-// npm install resend react-email @react-email/components
-// import { Resend } from 'resend'
-// import { LogbookResultEmail } from '@/emails/logbook-result'
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,42 +45,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // TODO: Initialize Resend
-    // const resend = new Resend(process.env.RESEND_API_KEY)
+    // Send email with Resend and React Email
+    const { data, error } = await resend.emails.send({
+      from: 'TruckCheck <noreply@m.truckcheck.com.au>',
+      to: [to],
+      subject: subject || 'NHVR Logbook Check Result',
+      react: LogbookResultEmail({
+        result: result,
+        mapImageUrl: mapImageUrl,
+        generatedDate: new Date().toLocaleDateString("en-AU", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+      }),
+    })
 
-    // TODO: Send email with Resend and React Email
-    // const { data, error } = await resend.emails.send({
-    //   from: 'TruckCheck <noreply@truckcheck.com.au>',
-    //   to: [to],
-    //   subject: subject || 'NHVR Logbook Check Result',
-    //   react: LogbookResultEmail({
-    //     result: result,
-    //     mapImageUrl: mapImageUrl,
-    //     generatedDate: new Date().toLocaleDateString("en-AU", {
-    //       weekday: "long",
-    //       year: "numeric",
-    //       month: "long",
-    //       day: "numeric",
-    //     }),
-    //   }),
-    // })
+    if (error) {
+      console.error('Failed to send email:', error)
+      return NextResponse.json(
+        { error: "Failed to send email" },
+        { status: 500 }
+      )
+    }
 
-    // if (error) {
-    //   console.error('Failed to send email:', error)
-    //   return NextResponse.json(
-    //     { error: "Failed to send email" },
-    //     { status: 500 }
-    //   )
-    // }
-
-    // For now, return not implemented
-    return NextResponse.json(
-      { error: "Email functionality not yet implemented" },
-      { status: 501 }
-    )
-
-    // TODO: When implemented, return success
-    // return NextResponse.json({ success: true, messageId: data.id })
+    return NextResponse.json({ success: true, messageId: data.id })
   } catch (error) {
     console.error("Error sending email:", error)
     return NextResponse.json(

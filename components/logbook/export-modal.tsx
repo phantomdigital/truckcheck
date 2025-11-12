@@ -296,33 +296,26 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
         return
       }
 
-      // TODO: Implement email sending with Resend and React Email
-      // For now, show a coming soon message
-      toast.info('Email feature coming soon!', {
-        description: 'We\'re working on email delivery. For now, please use Print/PDF.'
+      // Import server action dynamically
+      const { sendLogbookEmail } = await import('@/lib/email/actions')
+      
+      const response = await sendLogbookEmail({
+        to: emailTo,
+        subject: emailSubject,
+        result: result,
+        mapImageUrl: mapUrl,
       })
 
-      // Future implementation will look like:
-      // const response = await fetch('/api/send-logbook-email', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     to: emailTo,
-      //     subject: emailSubject,
-      //     result: result,
-      //     mapImageUrl: mapUrl,
-      //   }),
-      // })
-      //
-      // if (!response.ok) throw new Error('Failed to send email')
-      //
-      // toast.success('Email sent successfully!')
-      // setEmailTo('')
-      // setIsOpen(false)
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to send email')
+      }
 
+      toast.success('Email sent successfully!')
+      setEmailTo('')
+      setIsOpen(false)
     } catch (error) {
       console.error('Error sending email:', error)
-      toast.error('Failed to send email')
+      toast.error(error instanceof Error ? error.message : 'Failed to send email')
     } finally {
       setIsSendingEmail(false)
     }

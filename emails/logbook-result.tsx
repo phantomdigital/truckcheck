@@ -14,6 +14,7 @@ import type { CalculationResult } from '@/lib/logbook/types'
 interface LogbookResultEmailProps {
   result: CalculationResult
   mapImageUrl?: string
+  description?: string
   generatedDate: string
 }
 
@@ -23,6 +24,7 @@ const logoUrl = `${siteUrl}/TRUCKCHECK_LOGO.png`
 export function LogbookResultEmail({
   result,
   mapImageUrl,
+  description,
   generatedDate,
 }: LogbookResultEmailProps) {
   // Format date like PDF: "15 Jan 2024"
@@ -72,6 +74,13 @@ export function LogbookResultEmail({
               </tr>
             </table>
           </Section>
+
+          {/* Description/Message */}
+          {description && (
+            <Section style={descriptionSection}>
+              <Text style={descriptionText}>{description}</Text>
+            </Section>
+          )}
 
           {/* Main Result */}
           <Section style={resultSection(result.logbookRequired)}>
@@ -285,6 +294,23 @@ const timeText = {
   margin: '0',
   padding: '0',
   textAlign: 'right' as const,
+}
+
+const descriptionSection = {
+  padding: '16px 24px',
+  marginBottom: '16px',
+  backgroundColor: '#f9fafb',
+  borderRadius: '8px',
+  border: '1px solid #e5e7eb',
+}
+
+const descriptionText = {
+  color: '#374151',
+  fontSize: '12px',
+  lineHeight: '1.6',
+  margin: '0',
+  padding: '0',
+  whiteSpace: 'pre-wrap' as const,
 }
 
 const resultSection = (logbookRequired: boolean) => ({

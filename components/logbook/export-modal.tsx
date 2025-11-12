@@ -16,10 +16,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Printer, Lock, Download, Mail, FileText } from "lucide-react"
+import { Printer, Lock, Download, Mail, FileText, X } from "lucide-react"
 import { PrintResult } from "@/components/logbook/print-result"
 import { validatePDFExport } from "@/lib/stripe/actions"
 import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
 import type { CalculationResult } from "@/lib/logbook/types"
 import type mapboxgl from "mapbox-gl"
 
@@ -42,9 +43,17 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
   const [mapImageUrl, setMapImageUrl] = useState<string>()
   const [isCapturing, setIsCapturing] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
-  const [emailTo, setEmailTo] = useState("")
+  const [emailTo, setEmailTo] = useState<string[]>([])
+  const [emailToInput, setEmailToInput] = useState("")
+  const [emailCc, setEmailCc] = useState("")
+  const [emailDescription, setEmailDescription] = useState("")
   const [emailSubject, setEmailSubject] = useState("Work Diary Requirement Check Result")
   const [isSendingEmail, setIsSendingEmail] = useState(false)
+
+  // Limits
+  const MAX_TO_EMAILS = 10
+  const MAX_CC_EMAILS = 5
+  const MAX_DESCRIPTION_LENGTH = 500
 
   const captureMap = async (): Promise<string | null> => {
     // Find the entire map container (not just canvas, to include markers)
@@ -149,11 +158,13 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
       const originalOverflowY = (mapContainer.style as any).overflowY
       mapContainer.style.overflowY = 'visible'
       
+      // Use scale 1.5 for email (balance between quality and size)
+      // Scale 2 was too large for email attachments
       const canvas = await html2canvas(mapContainer, {
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        scale: 2, // Higher quality
+        scale: 1.5, // Reduced from 2 for smaller file size
         logging: false,
         scrollX: 0,
         scrollY: 0,
@@ -189,7 +200,9 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
         mapInstance.resize()
       }
       
-      const dataUrl = canvas.toDataURL('image/png')
+      // Convert to JPEG with compression for smaller file size
+      // Use quality 0.75 for good balance between quality and size
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.75)
       
       if (!dataUrl || dataUrl === 'data:,') {
         if (process.env.NODE_ENV === 'development') {
@@ -198,9 +211,23 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
         return null
       }
       
+      // Check size and warn if still too large (approximate - base64 is ~33% larger than binary)
+      const approximateSizeKB = (dataUrl.length * 3) / 4 / 1024
       if (process.env.NODE_ENV === 'development') {
-        console.log('Map captured successfully with markers, data URL length:', dataUrl.length)
+        console.log('Map captured successfully, approximate size:', approximateSizeKB.toFixed(2), 'KB')
       }
+      
+      // If still too large, compress more aggressively
+      if (approximateSizeKB > 800) {
+        // Re-compress with lower quality
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6)
+        const compressedSizeKB = (compressedDataUrl.length * 3) / 4 / 1024
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Re-compressed map, new size:', compressedSizeKB.toFixed(2), 'KB')
+        }
+        return compressedDataUrl
+      }
+      
       return dataUrl
     } catch (error) {
       // Keep error logging in production for debugging
@@ -273,16 +300,145 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
     }
   }
 
+  const parseEmailList = (emailString: string): string[] => {
+    return emailString
+      .split(/[,;]/)
+      .map(email => email.trim())
+      .filter(email => email.length > 0)
+  }
+
+  const validateEmailList = (emails: string[]): { valid: boolean; error?: string } => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    
+    for (const email of emails) {
+      if (!emailRegex.test(email)) {
+        return { valid: false, error: `Invalid email address: ${email}` }
+      }
+    }
+    
+    return { valid: true }
+  }
+
+  const handleEmailToInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setEmailToInput(value)
+
+    // Check if user typed comma or semicolon
+    if (value.endsWith(',') || value.endsWith(';')) {
+      const email = value.slice(0, -1).trim()
+      if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (emailRegex.test(email)) {
+          if (emailTo.length < MAX_TO_EMAILS) {
+            if (!emailTo.includes(email)) {
+              setEmailTo([...emailTo, email])
+              setEmailToInput("")
+            } else {
+              toast.error('Email already added')
+              setEmailToInput("")
+            }
+          } else {
+            toast.error(`Maximum ${MAX_TO_EMAILS} recipients allowed`)
+            setEmailToInput("")
+          }
+        } else {
+          toast.error('Invalid email address')
+          setEmailToInput("")
+        }
+      } else {
+        setEmailToInput("")
+      }
+    }
+  }
+
+  const handleEmailToInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && emailToInput.trim()) {
+      e.preventDefault()
+      const email = emailToInput.trim()
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (emailRegex.test(email)) {
+        if (emailTo.length < MAX_TO_EMAILS) {
+          if (!emailTo.includes(email)) {
+            setEmailTo([...emailTo, email])
+            setEmailToInput("")
+          } else {
+            toast.error('Email already added')
+            setEmailToInput("")
+          }
+        } else {
+          toast.error(`Maximum ${MAX_TO_EMAILS} recipients allowed`)
+          setEmailToInput("")
+        }
+      } else {
+        toast.error('Invalid email address')
+      }
+    } else if (e.key === 'Backspace' && emailToInput === '' && emailTo.length > 0) {
+      // Remove last badge when backspace on empty input
+      setEmailTo(emailTo.slice(0, -1))
+    }
+  }
+
+  const removeEmailTo = (emailToRemove: string) => {
+    setEmailTo(emailTo.filter(email => email !== emailToRemove))
+  }
+
   const handleEmailSend = async () => {
-    if (!emailTo.trim()) {
-      toast.error('Please enter an email address')
+    // Check if there are any "To" emails
+    if (emailTo.length === 0 && !emailToInput.trim()) {
+      toast.error('Please enter at least one email address')
       return
     }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(emailTo)) {
-      toast.error('Please enter a valid email address')
+    // If there's text in input, try to add it
+    if (emailToInput.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (emailRegex.test(emailToInput.trim())) {
+        if (emailTo.length < MAX_TO_EMAILS) {
+          if (!emailTo.includes(emailToInput.trim())) {
+            setEmailTo([...emailTo, emailToInput.trim()])
+            setEmailToInput("")
+          }
+        } else {
+          toast.error(`Maximum ${MAX_TO_EMAILS} recipients allowed`)
+          return
+        }
+      } else {
+        toast.error('Please enter a valid email address')
+        return
+      }
+    }
+
+    // Final check - need at least one email
+    if (emailTo.length === 0) {
+      toast.error('Please enter at least one email address')
+      return
+    }
+
+    // Validate all "To" emails
+    const toValidation = validateEmailList(emailTo)
+    if (!toValidation.valid) {
+      toast.error(toValidation.error || 'Invalid email address')
+      return
+    }
+
+    // Parse and validate CC emails
+    const ccEmails = parseEmailList(emailCc)
+    if (ccEmails.length > MAX_CC_EMAILS) {
+      toast.error(`Maximum ${MAX_CC_EMAILS} CC recipients allowed`)
+      return
+    }
+
+    if (ccEmails.length > 0) {
+      const ccValidation = validateEmailList(ccEmails)
+      if (!ccValidation.valid) {
+        toast.error(ccValidation.error || 'Invalid CC email address')
+        return
+      }
+    }
+
+    // Validate description length
+    if (emailDescription.length > MAX_DESCRIPTION_LENGTH) {
+      toast.error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`)
       return
     }
 
@@ -301,7 +457,9 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
       
       const response = await sendLogbookEmail({
         to: emailTo,
+        cc: ccEmails.length > 0 ? ccEmails : undefined,
         subject: emailSubject,
+        description: emailDescription.trim() || undefined,
         result: result,
         mapImageUrl: mapUrl,
       })
@@ -311,7 +469,10 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
       }
 
       toast.success('Email sent successfully!')
-      setEmailTo('')
+      setEmailTo([])
+      setEmailToInput('')
+      setEmailCc('')
+      setEmailDescription('')
       setIsOpen(false)
     } catch (error) {
       console.error('Error sending email:', error)
@@ -427,15 +588,68 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
             <TabsContent value="email" className="space-y-4 pt-4">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email-to">Email Address</Label>
+                  <Label htmlFor="email-to">
+                    To
+                    {emailTo.length > 0 && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {emailTo.length}/{MAX_TO_EMAILS}
+                      </span>
+                    )}
+                  </Label>
+                  <div className="flex flex-wrap gap-2 p-2 min-h-[42px] border border-input rounded-md bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                    {emailTo.map((email) => (
+                      <Badge
+                        key={email}
+                        variant="secondary"
+                        className="flex items-center gap-1 pr-1"
+                      >
+                        <span className="text-xs">{email}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeEmailTo(email)}
+                          disabled={isSendingEmail}
+                          className="ml-1 rounded-full hover:bg-secondary-foreground/20 p-0.5"
+                          aria-label={`Remove ${email}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                    <Input
+                      id="email-to"
+                      type="text"
+                      placeholder={emailTo.length === 0 ? "example@company.com" : ""}
+                      value={emailToInput}
+                      onChange={handleEmailToInputChange}
+                      onKeyDown={handleEmailToInputKeyDown}
+                      disabled={isSendingEmail || emailTo.length >= MAX_TO_EMAILS}
+                      className="flex-1 min-w-[200px] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Type email and press comma, semicolon, or Enter to add (max {MAX_TO_EMAILS})
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email-cc">
+                    CC (Optional)
+                    {emailCc && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {parseEmailList(emailCc).length}/{MAX_CC_EMAILS}
+                      </span>
+                    )}
+                  </Label>
                   <Input
-                    id="email-to"
-                    type="email"
-                    placeholder="example@company.com"
-                    value={emailTo}
-                    onChange={(e) => setEmailTo(e.target.value)}
+                    id="email-cc"
+                    type="text"
+                    placeholder="cc1@example.com, cc2@example.com"
+                    value={emailCc}
+                    onChange={(e) => setEmailCc(e.target.value)}
                     disabled={isSendingEmail}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Separate multiple emails with commas or semicolons (max {MAX_CC_EMAILS})
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email-subject">Subject</Label>
@@ -446,6 +660,32 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
                     onChange={(e) => setEmailSubject(e.target.value)}
                     disabled={isSendingEmail}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email-description">
+                    Description (Optional)
+                    {emailDescription && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {emailDescription.length}/{MAX_DESCRIPTION_LENGTH}
+                      </span>
+                    )}
+                  </Label>
+                  <textarea
+                    id="email-description"
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="Add a custom message or description to include in the email..."
+                    value={emailDescription}
+                    onChange={(e) => {
+                      if (e.target.value.length <= MAX_DESCRIPTION_LENGTH) {
+                        setEmailDescription(e.target.value)
+                      }
+                    }}
+                    disabled={isSendingEmail}
+                    rows={4}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Optional message to include above the results (max {MAX_DESCRIPTION_LENGTH} characters)
+                  </p>
                 </div>
                 <div className="text-sm text-muted-foreground">
                   Send your work diary requirement check directly to an email address.

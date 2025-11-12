@@ -51,6 +51,10 @@ const nextConfig: NextConfig = {
   // Enable experimental features for better performance
   experimental: {
     optimizePackageImports: ["lucide-react"],
+    // Increase body size limit for server actions (for email with map images)
+    serverActions: {
+      bodySizeLimit: '3mb', // Increased from default 1mb to handle compressed map images
+    },
   },
 };
 

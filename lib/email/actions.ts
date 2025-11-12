@@ -8,18 +8,27 @@ import type { CalculationResult } from '@/lib/logbook/types'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
+// Limits
+const MAX_TO_EMAILS = 10
+const MAX_CC_EMAILS = 5
+const MAX_DESCRIPTION_LENGTH = 500
+
 /**
  * Server action to send logbook check result via email (Pro users only)
  * SECURITY: Server-side validation ensures only Pro users can send emails
  */
 export async function sendLogbookEmail({
   to,
+  cc,
   subject,
+  description,
   result,
   mapImageUrl,
 }: {
-  to: string
+  to: string | string[]
+  cc?: string[]
   subject?: string
+  description?: string
   result: CalculationResult
   mapImageUrl?: string
 }) {
@@ -37,21 +46,54 @@ export async function sendLogbookEmail({
     return { success: false, error: "Pro subscription required" }
   }
 
-  // Validate email
+  // Normalize "to" to array
+  const toEmails = Array.isArray(to) ? to : [to]
+
+  // Validate "To" emails
+  if (toEmails.length === 0) {
+    return { success: false, error: "At least one recipient email address is required" }
+  }
+
+  if (toEmails.length > MAX_TO_EMAILS) {
+    return { success: false, error: `Maximum ${MAX_TO_EMAILS} recipients allowed` }
+  }
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!to || !emailRegex.test(to)) {
-    return { success: false, error: "Invalid email address" }
+  for (const email of toEmails) {
+    if (!email || !emailRegex.test(email)) {
+      return { success: false, error: `Invalid email address: ${email}` }
+    }
+  }
+
+  // Validate CC emails (server-side)
+  if (cc && cc.length > 0) {
+    if (cc.length > MAX_CC_EMAILS) {
+      return { success: false, error: `Maximum ${MAX_CC_EMAILS} CC recipients allowed` }
+    }
+
+    for (const email of cc) {
+      if (!emailRegex.test(email)) {
+        return { success: false, error: `Invalid CC email address: ${email}` }
+      }
+    }
+  }
+
+  // Validate description length (server-side)
+  if (description && description.length > MAX_DESCRIPTION_LENGTH) {
+    return { success: false, error: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less` }
   }
 
   try {
     // Send email with Resend and React Email
     const { data, error } = await resend.emails.send({
       from: 'TruckCheck <noreply@m.truckcheck.com.au>',
-      to: [to],
+      to: toEmails,
+      cc: cc && cc.length > 0 ? cc : undefined,
       subject: subject || 'NHVR Logbook Check Result',
       react: LogbookResultEmail({
         result: result,
         mapImageUrl: mapImageUrl,
+        description: description,
         generatedDate: new Date().toLocaleDateString("en-AU", {
           weekday: "long",
           year: "numeric",

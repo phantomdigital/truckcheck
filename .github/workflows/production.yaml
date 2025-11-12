@@ -88,7 +88,7 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PRODUCTION_PROJECT_ID }}
-          vercel-args: '--prod --yes' # Production deployment, auto-confirm
+          vercel-args: '--prod' # Production deployment (--yes not needed in v25+)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

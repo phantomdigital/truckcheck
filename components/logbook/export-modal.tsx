@@ -43,7 +43,7 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
   const [isCapturing, setIsCapturing] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [emailTo, setEmailTo] = useState("")
-  const [emailSubject, setEmailSubject] = useState("NHVR Logbook Check Result")
+  const [emailSubject, setEmailSubject] = useState("Work Diary Requirement Check Result")
   const [isSendingEmail, setIsSendingEmail] = useState(false)
 
   const captureMap = async (): Promise<string | null> => {
@@ -246,7 +246,7 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
-    documentTitle: `NHVR-Logbook-Check-${new Date().toISOString().split('T')[0]}`,
+    documentTitle: `Work-Diary-Check-${new Date().toISOString().split('T')[0]}`,
     onAfterPrint: () => {
       // Clean up the image URL after printing
       setTimeout(() => setMapImageUrl(undefined), 1000)
@@ -367,7 +367,7 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
           <DialogHeader>
             <DialogTitle>Export Result</DialogTitle>
             <DialogDescription>
-              Save or share your logbook check result
+              Save or share your work diary requirement check result
             </DialogDescription>
           </DialogHeader>
 
@@ -390,7 +390,7 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
             <TabsContent value="pdf" className="space-y-4 pt-4">
               <div className="space-y-3">
                 <div className="text-sm text-muted-foreground">
-                  Save your logbook check result as a PDF file for your records.
+                  Save your work diary requirement check as a PDF file for your records.
                 </div>
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg text-sm">
                   <Download className="h-4 w-4 text-muted-foreground" />
@@ -412,7 +412,7 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
             <TabsContent value="print" className="space-y-4 pt-4">
               <div className="space-y-3">
                 <div className="text-sm text-muted-foreground">
-                  Print your logbook check result directly to your printer.
+                  Print your work diary requirement check directly to your printer.
                 </div>
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg text-sm">
                   <Printer className="h-4 w-4 text-muted-foreground" />
@@ -455,7 +455,7 @@ export function ExportModal({ result, isPro = false }: ExportModalProps): ReactE
                   />
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  Send your logbook check result directly to an email address.
+                  Send your work diary requirement check directly to an email address.
                 </div>
               </div>
               <Button

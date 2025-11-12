@@ -34,8 +34,16 @@ export function useCheckout() {
       } = await supabase.auth.getUser()
 
       if (!user) {
-        toast.error("Please sign in to upgrade")
-        router.push("/auth/login")
+        // Redirect to sign-up with checkout intent - better UX for new users
+        // They can sign up or login from there
+        const params = new URLSearchParams()
+        params.set("redirect", "/pricing")
+        params.set("checkout", "true")
+        params.set("plan", "Pro")
+        if (priceId) {
+          params.set("priceId", priceId)
+        }
+        router.push(`/auth/sign-up?${params.toString()}`)
         return
       }
 

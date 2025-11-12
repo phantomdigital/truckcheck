@@ -10,6 +10,7 @@ import { safeCaptureException } from "@/lib/sentry/utils"
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const priceId = searchParams.get("priceId") || process.env.STRIPE_PRICE_ID || ""
+  let userId: string | undefined
 
   try {
     // Verify authentication server-side
@@ -29,6 +30,8 @@ export async function GET(request: NextRequest) {
       }
       return NextResponse.redirect(new URL(`/auth/sign-up?${params.toString()}`, request.url))
     }
+
+    userId = user.id
 
     console.log("[Checkout Verify] User authenticated, creating checkout session...")
 
@@ -50,7 +53,7 @@ export async function GET(request: NextRequest) {
     console.error("[Checkout Verify] Error:", error)
     safeCaptureException(err, {
       context: "checkout_verify",
-      userId: user?.id,
+      userId,
       priceId,
     })
     // Redirect to pricing page with error

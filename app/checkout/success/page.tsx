@@ -1,15 +1,11 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
-import { getSubscriptionStatus } from "@/lib/stripe/actions"
-import { Card, CardContent } from "@/components/ui/card"
+import { Suspense } from "react"
 import { Button } from "@/components/ui/button"
-import { Check, Sparkles, Mail, History, Archive } from "lucide-react"
+import { Check, Sparkles, History, Archive } from "lucide-react"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { generatePageMetadata } from "@/lib/seo/config"
-import { stripe } from "@/lib/stripe/config"
-import { formatPrice } from "@/lib/stripe/products"
-import type Stripe from "stripe"
+import { SubscriptionDetails } from "@/components/checkout/subscription-details"
+import { SubscriptionDetailsSkeleton, FeaturesListSkeleton } from "@/components/checkout/success-skeletons"
 
 export const metadata: Metadata = generatePageMetadata({
   title: "Welcome to Pro - TruckCheck",
@@ -17,75 +13,11 @@ export const metadata: Metadata = generatePageMetadata({
   path: "/checkout/success",
 })
 
-export default async function CheckoutSuccessPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect("/auth/login")
-  }
-
-  const { isPro } = await getSubscriptionStatus()
-
-  // If not Pro, something went wrong - redirect to pricing
-  if (!isPro) {
-    redirect("/pricing?error=subscription_not_active")
-  }
-
-  // Fetch user's subscription and product details from Stripe
-  const { data: userData } = await supabase
-    .from("users")
-    .select("stripe_subscription_id")
-    .eq("id", user.id)
-    .single()
-
-  let productName = "TruckCheck Pro"
-  let productFeatures: string[] = []
-  let subscriptionAmount = "$"
-
-  if (userData?.stripe_subscription_id) {
-    try {
-      const subscription = await stripe.subscriptions.retrieve(userData.stripe_subscription_id, {
-        expand: ['items.data.price.product']
-      })
-      
-      const subscriptionItem = subscription.items.data[0]
-      const price = subscriptionItem.price
-      
-      // Check if product is expanded (not just an ID string)
-      if (price.product && typeof price.product !== 'string') {
-        const product = price.product as Stripe.Product
-        
-        // Get product name and features
-        productName = product.name || productName
-        
-        // Extract marketing features if available
-        if (product.marketing_features && Array.isArray(product.marketing_features)) {
-          productFeatures = product.marketing_features
-            .map(feature => feature.name)
-            .filter((name): name is string => Boolean(name))
-        }
-      }
-
-      // Format price
-      if (price.unit_amount !== null && price.unit_amount !== undefined) {
-        const formattedAmount = formatPrice(price.unit_amount, price.currency)
-        const interval = price.recurring?.interval || 'month'
-        const intervalCount = price.recurring?.interval_count || 1
-        subscriptionAmount = `${formattedAmount} / ${intervalCount > 1 ? intervalCount + ' ' : ''}${interval}${intervalCount > 1 ? 's' : ''}`
-      }
-    } catch (error) {
-      console.error("Error fetching subscription details:", error)
-      // Fall back to defaults if error
-    }
-  }
-
+export default function CheckoutSuccessPage() {
   return (
     <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-12 sm:py-20">
       <div className="max-w-2xl mx-auto">
-        {/* Success Header */}
+        {/* Success Header - Static, loads immediately */}
         <div className="text-center space-y-4 mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/20 mb-4">
             <Check className="h-8 w-8 text-green-600 dark:text-green-500" />
@@ -98,47 +30,19 @@ export default async function CheckoutSuccessPage() {
           </p>
         </div>
 
-        {/* Subscription Details */}
-        <Card className="mb-8">
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-4 border-b border-border/50">
-                <span className="text-sm text-muted-foreground">Subscription</span>
-                <span className="font-semibold">{productName}</span>
-              </div>
-              <div className="flex items-center justify-between pb-4 border-b border-border/50">
-                <span className="text-sm text-muted-foreground">Amount</span>
-                <span className="font-semibold">{subscriptionAmount}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="h-4 w-4" />
-                <span>A receipt has been sent to {user.email}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Subscription Details - Dynamic, shows skeleton while loading */}
+        <Suspense 
+          fallback={
+            <>
+              <SubscriptionDetailsSkeleton />
+              <FeaturesListSkeleton />
+            </>
+          }
+        >
+          <SubscriptionDetails />
+        </Suspense>
 
-        {/* Pro Features Unlocked */}
-        {productFeatures.length > 0 && (
-          <Card className="mb-8">
-            <CardContent className="pt-6">
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            
-                Features Included:
-              </h2>
-              <ul className="space-y-2">
-                {productFeatures.map((feature) => (
-                  <li key={feature} className="flex items-start gap-3">
-                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
-                    <span className="text-sm">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* CTAs */}
+        {/* CTAs - Static */}
         <div className="space-y-4">
           <Link href="/" className="block">
             <Button variant="cta" size="lg" className="w-full rounded-md!">
@@ -164,7 +68,7 @@ export default async function CheckoutSuccessPage() {
           </div>
         </div>
 
-        {/* Help Text */}
+        {/* Help Text - Static */}
         <div className="mt-8 p-4 rounded-lg bg-muted/50 text-center">
           <p className="text-sm text-muted-foreground">
             Need help?{" "}

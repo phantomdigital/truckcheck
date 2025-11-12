@@ -1,10 +1,8 @@
 import type { Metadata } from "next"
 import Script from "next/script"
 import { Suspense } from "react"
-import { getSubscriptionStatus } from "@/lib/stripe/actions"
-import LogbookChecker from "../logbook-checker"
 import { ResultSkeleton } from "@/components/logbook/result-skeleton"
-import { DepotProvider } from "@/lib/depot/depot-context"
+import { LogbookCheckerWrapper } from "@/components/logbook/logbook-checker-wrapper"
 import { generatePageMetadata } from "@/lib/seo/config"
 import {
   getNHVRCalculatorSchema,
@@ -37,11 +35,8 @@ export const metadata: Metadata = generatePageMetadata({
   ],
 })
 
-export default async function NHVRLogbookCheckerPage() {
-  // Fetch subscription status at page level (server component)
-  const { isPro } = await getSubscriptionStatus()
-
-  // Generate structured data for this specific tool
+export default function NHVRLogbookCheckerPage() {
+  // Generate structured data for this specific tool (static, no async needed)
   const structuredData = combineSchemas(
     getNHVRCalculatorSchema(),
     getNHVRFAQSchema(),
@@ -66,7 +61,7 @@ export default async function NHVRLogbookCheckerPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
-      {/* Server-rendered page header for SEO */}
+      {/* Server-rendered page header for SEO - Static, loads immediately */}
       <header className="w-full border-b border-border/50 bg-muted/30">
         <div className="w-full max-w-[100rem] mx-auto px-4 lg:px-8 py-12 sm:py-20 lg:py-32">
           <div className="max-w-6xl mx-auto space-y-4">
@@ -96,17 +91,16 @@ export default async function NHVRLogbookCheckerPage() {
         </div>
       </header>
 
-      <DepotProvider>
-        <Suspense fallback={
-          <div className="w-full max-w-[100rem] mx-auto px-4 lg:px-8 py-6">
-            <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
-              <ResultSkeleton />
-            </div>
+      {/* Dynamic Content - Shows skeleton while loading subscription status and initializing */}
+      <Suspense fallback={
+        <div className="w-full max-w-[100rem] mx-auto px-4 lg:px-8 py-6">
+          <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+            <ResultSkeleton />
           </div>
-        }>
-          <LogbookChecker isPro={isPro} />
-        </Suspense>
-      </DepotProvider>
+        </div>
+      }>
+        <LogbookCheckerWrapper />
+      </Suspense>
     </>
   )
 }

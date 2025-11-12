@@ -53,6 +53,26 @@ react:
   data_loading:
     - Data must be loaded on the server first, then on the client
     - No wrapper components for data loading - keep loading logic explicit
+  
+  skeleton_loading:
+    - ALWAYS use Suspense boundaries with skeleton loaders for dynamic server component data
+    - Static content (titles, descriptions, headers) should render immediately outside Suspense
+    - Dynamic content (data fetching) should be wrapped in Suspense with appropriate skeleton fallbacks
+    - Pattern: Extract data-fetching components into separate server components, wrap in Suspense
+    - Create skeleton components that match the structure of the actual components
+    - Place skeleton components in the same folder as the components they represent (e.g., components/account/account-skeletons.tsx)
+    - Example structure:
+      ```tsx
+      // page.tsx - Static content loads immediately
+      <div>
+        <h1>Page Title</h1> {/* Static */}
+        <Suspense fallback={<ContentSkeleton />}>
+          <DynamicContent /> {/* Fetches data */}
+        </Suspense>
+      </div>
+      ```
+    - Benefits: Better perceived performance, progressive loading, improved UX
+    - Apply to: Account pages, pricing pages, checkout success pages, any page with database queries
 
 ## Styling Rules
 
@@ -90,6 +110,9 @@ code_quality:
     - Optimize images using Next.js Image component
     - Minimize client-side JavaScript - prefer server components
     - Use React.memo() sparingly and only when profiling shows benefit
+    - Use React cache() to deduplicate database queries within the same render cycle
+    - Wrap dynamic server components in Suspense boundaries with skeleton loaders
+    - Keep static content (titles, descriptions) outside Suspense for immediate rendering
   
   accessibility:
     - Always include proper ARIA labels for interactive elements
@@ -223,11 +246,15 @@ stripe:
     - Use Server Actions (getSubscriptionStatus, getCalculationHistory) only in Server Components
     - Pass subscription status (isPro) as props from page.tsx to client components
     - Use revalidatePath() after mutations to ensure fresh data on next render
+    - Use React cache() for getSubscriptionStatus() and getCachedUser() to deduplicate queries
+    - Wrap subscription data fetching in Suspense boundaries with skeleton loaders
   
   server_components:
     - Fetch all data at the page level (page.tsx) before rendering client components
     - Server Actions should only be called from Server Components for data fetching
     - Pass fetched data as props to client components - never fetch in client components
+    - Extract data-fetching logic into separate server components wrapped in Suspense
+    - Keep static page structure (titles, headers) outside Suspense for immediate rendering
   
   mutations:
     - Client components can call Server Actions directly for mutations

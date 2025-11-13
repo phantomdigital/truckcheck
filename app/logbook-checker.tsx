@@ -220,6 +220,7 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
   const handleCalculate = async () => {
     // Prevent concurrent executions - extra safety guard
     if (loading) {
+      console.warn("Calculate already in progress, ignoring duplicate call")
       return
     }
 
@@ -235,6 +236,7 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
       return
     }
 
+    console.log("Starting calculation with stops:", stops.map(s => ({ address: s.address, hasLocation: !!s.location })))
     setLoading(true)
     setError(null)
     setResult(null)
@@ -290,9 +292,18 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
           !isNaN(stop.location.lng) &&
           stop.location.placeName.trim() === stop.address.trim()
         
+        console.log(`Stop ${i + 1} validation:`, { 
+          address: stop.address, 
+          hasValidLocation, 
+          placeName: stop.location?.placeName,
+          addressMatch: stop.location?.placeName?.trim() === stop.address.trim()
+        })
+        
         if (hasValidLocation) {
+          console.log(`Using existing location for stop ${i + 1}`)
           finalStops.push(stop)
         } else if (!stop.address.trim()) {
+          console.error(`Stop ${i + 1} has empty address`)
           const errorMsg = `Please enter an address for stop ${i + 1}`
           setError(errorMsg)
           toast.error("Validation Error", {
@@ -302,12 +313,15 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
           setLoading(false)
           return
         } else {
+          console.log(`Geocoding stop ${i + 1}: ${stop.address}`)
           try {
             const location = await geocodeAddress(stop.address)
+            console.log(`Successfully geocoded stop ${i + 1}:`, location)
             finalStops.push({ ...stop, location })
             // Update the stop with the geocoded location
             updateStopLocation(stop.id, location)
           } catch (err) {
+            console.error(`Failed to geocode stop ${i + 1}:`, err)
             const errorMsg = err instanceof Error ? err.message : `Could not geocode stop ${i + 1}`
             setError(errorMsg)
             toast.error("Geocoding Error", {
@@ -333,11 +347,13 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
 
       // Calculate actual driving route distance with all waypoints
       const waypoints = finalStops.map(stop => ({ lat: stop.location!.lat, lng: stop.location!.lng }))
+      console.log("Calculating driving distance with waypoints:", waypoints)
       const routeData = await calculateDrivingDistance(
         finalBaseLocation.lat,
         finalBaseLocation.lng,
         waypoints
       )
+      console.log("Driving distance calculated:", routeData)
 
       // Determine if logbook is required
       const maxDistanceFromBase = routeData?.maxDistanceFromBase || distance
@@ -417,8 +433,10 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
         }
       }
     } catch (err) {
+      console.error("Error in handleCalculate:", err)
       setError(err instanceof Error ? err.message : "An error occurred while calculating the distance")
     } finally {
+      console.log("Calculation complete, clearing loading state")
       clearTimeout(timeoutFallback)
       setLoading(false)
     }
@@ -436,12 +454,22 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
   }
 
   const handleSelectDepotForStop = (stopId: string, depot: Depot) => {
-    updateStopAddress(stopId, depot.address)
-    updateStopLocation(stopId, {
-      lat: depot.lat,
-      lng: depot.lng,
-      placeName: depot.address,
-    })
+    // Atomic update to prevent race conditions
+    setStops((currentStops) => 
+      currentStops.map(stop => 
+        stop.id === stopId 
+          ? {
+              ...stop,
+              address: depot.address,
+              location: {
+                lat: depot.lat,
+                lng: depot.lng,
+                placeName: depot.address,
+              }
+            }
+          : stop
+      )
+    )
     toast.success('Depot applied to stop')
   }
 

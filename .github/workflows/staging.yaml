@@ -17,7 +17,34 @@ jobs:
         with:
           version: latest
 
+      # DEPLOYMENT STRATEGY: Build → Migrate → Deploy
+      #
+      # Failure scenarios and handling:
+      # 1. Build fails → Stop (no migrations, no deploy) Safe
+      # 2. Migrations fail → Stop (no deploy, DB unchanged) Safe  
+      # 3. Deploy fails → Migrations already applied Requires backward-compatible migrations
+      #
+      # BEST PRACTICE: Make migrations backward-compatible (additive only)
+      # - Add new columns/tables (don't remove until next release)
+      # - Add new indexes (safe)
+      # - Don't drop columns/tables in same release as code that uses them
+      # - Use nullable columns or defaults when adding required fields
+      #
+      # This ensures old code continues working if deploy fails after migrations succeed
+      
+      # Build the code first to catch build errors before pushing migrations
+      # This prevents database schema changes if the code won't compile
+      - name: Build Next.js application
+        run: |
+          npm ci
+          npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          # Add other required env vars for build if needed
+
       - name: Link to Supabase project
+        if: success() # Only link if build succeeded
         run: |
           # Note: Supabase CLI uses Session mode pooler (port 5432) by default
           # Session mode has connection limits based on pool_size, even on Pro plan
@@ -74,13 +101,18 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
 
+      # Push migrations only if build succeeded
+      # IMPORTANT: Migrations should be backward-compatible so old code still works
+      # if this step succeeds but deployment fails
       - name: Push database migrations
+        if: success() # Only push migrations if build and link succeeded
         run: supabase db push --include-all
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       # Deploy to Vercel only after migrations succeed
-      # This ensures database schema is ready before code goes live
+      # If this fails, migrations are already applied - ensure they're backward-compatible!
+      # Old code should continue working with the new schema until next successful deploy
       - name: Deploy to Vercel (Staging)
         if: success() # Only deploy if migrations succeed
         timeout-minutes: 10 # Prevent hanging on inspect step

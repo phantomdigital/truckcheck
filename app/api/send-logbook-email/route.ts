@@ -3,7 +3,15 @@ import { createClient } from "@/lib/supabase/server"
 import { Resend } from 'resend'
 import { LogbookResultEmail } from '@/emails/logbook-result'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy-load Resend client to avoid build-time errors when env vars aren't available
+// Create it only when needed (at runtime, not module load time)
+const getResendClient = () => {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY environment variable is not set')
+  }
+  return new Resend(apiKey)
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,6 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send email with Resend and React Email
+    const resend = getResendClient()
     const { data, error } = await resend.emails.send({
       from: 'TruckCheck <noreply@m.truckcheck.com.au>',
       to: [to],

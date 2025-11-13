@@ -90,9 +90,16 @@ export async function GET(
 
       if (signedUrlError || !signedUrlData) {
         console.error('Error creating signed URL:', signedUrlError)
+        // Return 404 if file doesn't exist, 500 for other errors
+        const errorMessage = signedUrlError?.message?.toLowerCase() || ''
+        const statusCode = errorMessage.includes('not found') || 
+                          errorMessage.includes('does not exist') ||
+                          errorMessage.includes('no such file')
+          ? 404
+          : 500
         return NextResponse.json(
-          { error: 'Failed to generate image URL', details: signedUrlError?.message },
-          { status: 500 }
+          { error: statusCode === 404 ? 'Image not found' : 'Failed to generate image URL', details: signedUrlError?.message },
+          { status: statusCode }
         )
       }
 
@@ -124,9 +131,11 @@ export async function GET(
         statusText: response.statusText,
         error: errorText.substring(0, 200)
       })
+      // Preserve 404 status, otherwise return 500 for server errors
+      const statusCode = response.status === 404 ? 404 : 500
       return NextResponse.json(
-        { error: 'Failed to fetch image', details: errorText.substring(0, 200) },
-        { status: response.status }
+        { error: statusCode === 404 ? 'Image not found' : 'Failed to fetch image', details: errorText.substring(0, 200) },
+        { status: statusCode }
       )
     }
 

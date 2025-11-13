@@ -94,7 +94,7 @@ export async function sendLogbookEmail({
 
   try {
     // Get the site URL for email images - must be publicly accessible (not localhost)
-    // Detect branch/environment and use appropriate URL with bypass parameters for protected deployments
+    // Use staging URL when on develop branch, but ensure bypass parameters are added for Vercel auth protection
     const getEmailSiteUrl = (): string => {
       // Check branch/environment (Vercel sets VERCEL_ENV and VERCEL_GIT_COMMIT_REF)
       const vercelEnv = process.env.VERCEL_ENV // 'production', 'preview', or 'development'
@@ -102,7 +102,7 @@ export async function sendLogbookEmail({
       const isDevelopBranch = gitBranch === 'develop' || gitBranch === 'staging'
       const isPreview = vercelEnv === 'preview' || vercelEnv === 'development'
       
-      console.log('Email site URL detection:', {
+      console.log('[Email] Site URL detection:', {
         vercelEnv,
         gitBranch,
         isDevelopBranch,
@@ -110,9 +110,9 @@ export async function sendLogbookEmail({
         nextPublicSiteUrl: process.env.NEXT_PUBLIC_SITE_URL
       })
       
-      // For develop/staging branch, use staging URL
+      // For develop/staging branch, use staging URL (where the code is deployed)
       if (isDevelopBranch || (isPreview && !process.env.NEXT_PUBLIC_SITE_URL?.includes('truckcheck.com.au'))) {
-        console.log('Using staging URL for email images (develop branch)')
+        console.log('[Email] Using staging URL for email images (develop branch)')
         return 'https://staging.truckcheck.com.au'
       }
       
@@ -139,34 +139,51 @@ export async function sendLogbookEmail({
         const encodedPath = filePath.split('/').map(segment => encodeURIComponent(segment)).join('/')
         let proxiedUrl = `${siteUrl}/api/proxy-map-image/${encodedPath}`
         
-        // Add Vercel protection bypass for preview/development branches (staging URL)
+        // Add Vercel protection bypass for staging/preview deployments
         // VERCEL_AUTOMATION_BYPASS_SECRET is automatically set by Vercel when Protection Bypass for Automation is enabled
-        // This allows email clients to access images on protected Vercel deployments via query parameter
         const isStagingUrl = siteUrl.includes('staging.truckcheck.com.au')
         const vercelBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
         
-        // Always add bypass parameters when using staging URL (protected deployment)
-        // Email clients can't authenticate, so they need the bypass token in the URL
+        // Log all environment variables related to Vercel bypass for debugging
+        console.log('[Email] Vercel bypass check:', {
+          isStagingUrl,
+          hasBypassSecret: !!vercelBypassSecret,
+          bypassSecretLength: vercelBypassSecret?.length || 0,
+          vercelEnv: process.env.VERCEL_ENV,
+          allVercelEnvVars: Object.keys(process.env).filter(key => key.includes('VERCEL')).map(key => ({
+            key,
+            hasValue: !!process.env[key],
+            valueLength: process.env[key]?.length || 0
+          }))
+        })
+        
         if (isStagingUrl && vercelBypassSecret) {
+          // Add bypass parameters to allow email clients to access protected deployments
+          // Note: Some email clients may strip query parameters, so this might not work for all clients
           const bypassParams = new URLSearchParams({
             'x-vercel-protection-bypass': vercelBypassSecret,
             'x-vercel-set-bypass-cookie': 'true',
           })
           proxiedUrl = `${proxiedUrl}?${bypassParams.toString()}`
-          console.log('Added Vercel bypass parameters to email image URL (staging/protected deployment)', {
-            hasBypassSecret: !!vercelBypassSecret,
-            bypassSecretLength: vercelBypassSecret?.length || 0
+          console.log('[Email] Added Vercel bypass parameters to URL:', {
+            hasBypassSecret: true,
+            bypassSecretLength: vercelBypassSecret.length,
+            proxiedUrl: proxiedUrl.substring(0, 300),
+            note: 'If images still fail, configure /api/proxy-map-image/* route in Vercel dashboard to bypass authentication'
           })
         } else if (isStagingUrl && !vercelBypassSecret) {
-          console.warn('Staging URL detected but VERCEL_AUTOMATION_BYPASS_SECRET not available - email images may fail due to auth protection. Ensure Protection Bypass for Automation is enabled in Vercel.')
+          console.error('[Email] CRITICAL: Staging URL detected but VERCEL_AUTOMATION_BYPASS_SECRET not available!')
+          console.error('[Email] To fix: Go to Vercel Dashboard → Project Settings → Deployment Protection → Enable "Protection Bypass for Automation"')
+          console.error('[Email] Alternative: Configure /api/proxy-map-image/* route to bypass authentication in Vercel dashboard')
         }
         
         finalMapImageUrl = proxiedUrl
-        console.log('Map image URL generated:', { 
+        console.log('[Email] Map image URL generated:', { 
           filePath,
-          proxiedUrl: finalMapImageUrl,
+          proxiedUrl: finalMapImageUrl.substring(0, 200), // Truncate for logging
+          fullProxiedUrl: finalMapImageUrl, // Full URL for debugging
           siteUrl,
-          hasBypass: !!vercelBypassSecret
+          timestamp: new Date().toISOString()
         })
       } else {
         console.error('Failed to upload map image, using base64 fallback')

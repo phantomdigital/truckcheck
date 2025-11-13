@@ -22,13 +22,26 @@ export async function GET(
     const url = new URL(request.url)
     
     // Log bypass parameters for debugging Vercel Authentication Protection
+    // Note: If you're seeing 401 errors with no logs, Vercel is blocking the request before it reaches Next.js
+    // This means the bypass parameters aren't working or aren't being recognized
     const bypassToken = url.searchParams.get('x-vercel-protection-bypass')
     const setBypassCookie = url.searchParams.get('x-vercel-set-bypass-cookie')
-    console.log('Vercel bypass check:', {
+    const userAgent = request.headers.get('user-agent') || 'unknown'
+    const referer = request.headers.get('referer') || 'none'
+    
+    // Check if request has bypass token in headers (alternative method)
+    const bypassHeader = request.headers.get('x-vercel-protection-bypass')
+    
+    console.log('[Proxy Map Image] Request received:', {
       hasBypassToken: !!bypassToken,
+      hasBypassHeader: !!bypassHeader,
       hasSetBypassCookie: !!setBypassCookie,
       bypassTokenLength: bypassToken?.length || 0,
-      url: url.toString().substring(0, 200)
+      userAgent: userAgent.substring(0, 100),
+      referer: referer.substring(0, 100),
+      url: url.toString().substring(0, 200),
+      timestamp: new Date().toISOString(),
+      note: 'If you see this log, the request reached Next.js. If you see 401 with no logs, Vercel blocked it before Next.js.'
     })
     
     const queryUrl = url.searchParams.get('url')

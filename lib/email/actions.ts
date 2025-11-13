@@ -108,11 +108,25 @@ export async function sendLogbookEmail({
         // Encode each segment separately to preserve the / separator
         // Format: userId/filename -> /api/proxy-map-image/userId/filename
         const encodedPath = filePath.split('/').map(segment => encodeURIComponent(segment)).join('/')
-        finalMapImageUrl = `${siteUrl}/api/proxy-map-image/${encodedPath}`
+        let proxiedUrl = `${siteUrl}/api/proxy-map-image/${encodedPath}`
+        
+        // Add Vercel protection bypass for preview/development branches
+        // This allows email clients to access images on protected Vercel deployments
+        const vercelBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || process.env.VERCEL_TOKEN
+        if (vercelBypassSecret) {
+          const bypassParams = new URLSearchParams({
+            'x-vercel-protection-bypass': vercelBypassSecret,
+            'x-vercel-set-bypass-cookie': 'true',
+          })
+          proxiedUrl = `${proxiedUrl}?${bypassParams.toString()}`
+        }
+        
+        finalMapImageUrl = proxiedUrl
         console.log('Map image URL generated:', { 
           filePath,
           proxiedUrl: finalMapImageUrl,
-          siteUrl
+          siteUrl,
+          hasBypass: !!vercelBypassSecret
         })
       } else {
         console.error('Failed to upload map image, using base64 fallback')

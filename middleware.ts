@@ -14,9 +14,10 @@ export const config = {
      * - favicon.ico (favicon file)
      * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
      * - api/stripe/webhook (Stripe webhooks - must not be modified)
+     * - api/proxy-map-image (Map image proxy - must be publicly accessible for email clients)
      * Feel free to modify this pattern to include more paths.
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/stripe/webhook|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/stripe/webhook|api/proxy-map-image|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 }
 

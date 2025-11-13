@@ -15,54 +15,72 @@ export async function GET(
   { params }: { params: { path: string[] } }
 ) {
   try {
-    // Reconstruct the file path from path segments (URL decode it)
-    const filePath = params.path.map(segment => decodeURIComponent(segment)).join('/')
+    // Check if this is the old query-parameter format
+    const url = new URL(request.url)
+    const queryUrl = url.searchParams.get('url')
     
-    console.log('Proxy map image request:', { 
-      pathSegments: params.path.length,
-      filePath
-    })
-
-    if (!filePath) {
-      console.error('Missing file path')
-      return NextResponse.json(
-        { error: 'Missing image path' },
-        { status: 400 }
-      )
-    }
-
-    // Validate file path format (should be userId/filename)
-    if (!filePath.includes('/') || filePath.split('/').length !== 2) {
-      console.error('Invalid file path format:', filePath)
-      return NextResponse.json(
-        { error: 'Invalid image path format' },
-        { status: 400 }
-      )
-    }
-
-    // Generate signed URL on-demand using the file path
-    const supabase = createServiceRoleClient()
+    let supabaseUrl: string
     
-    // Create signed URL (valid for 1 year - emails need long-lived URLs)
-    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-      .from('map-images')
-      .createSignedUrl(filePath, 31536000) // 1 year in seconds
+    if (queryUrl) {
+      // Old format: /api/proxy-map-image?url=https://...
+      // Decode the Supabase signed URL from query parameter
+      supabaseUrl = decodeURIComponent(queryUrl)
+      console.log('Using old query-parameter format, decoded Supabase URL:', supabaseUrl.substring(0, 100))
+    } else {
+      // New format: /api/proxy-map-image/{filePath}
+      // Reconstruct the file path from path segments (URL decode it)
+      const filePath = params.path.map(segment => decodeURIComponent(segment)).join('/')
+      
+      console.log('Proxy map image request (path-based):', { 
+        pathSegments: params.path.length,
+        filePath
+      })
 
-    if (signedUrlError || !signedUrlData) {
-      console.error('Error creating signed URL:', signedUrlError)
-      return NextResponse.json(
-        { error: 'Failed to generate image URL', details: signedUrlError?.message },
-        { status: 500 }
-      )
+      if (!filePath) {
+        console.error('Missing file path')
+        return NextResponse.json(
+          { error: 'Missing image path' },
+          { status: 400 }
+        )
+      }
+
+      // Validate file path format (should be userId/filename)
+      if (!filePath.includes('/') || filePath.split('/').length !== 2) {
+        console.error('Invalid file path format:', filePath)
+        return NextResponse.json(
+          { error: 'Invalid image path format' },
+          { status: 400 }
+        )
+      }
+
+      // Generate signed URL on-demand using the file path
+      const supabase = createServiceRoleClient()
+      
+      // Create signed URL (valid for 1 year - emails need long-lived URLs)
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('map-images')
+        .createSignedUrl(filePath, 31536000) // 1 year in seconds
+
+      if (signedUrlError || !signedUrlData) {
+        console.error('Error creating signed URL:', signedUrlError)
+        return NextResponse.json(
+          { error: 'Failed to generate image URL', details: signedUrlError?.message },
+          { status: 500 }
+        )
+      }
+
+      supabaseUrl = signedUrlData.signedUrl
+      console.log('Generated signed URL for file path:', { filePath, urlPreview: supabaseUrl.substring(0, 100) })
     }
-
-    const supabaseUrl = signedUrlData.signedUrl
-    console.log('Generated signed URL for file path:', { filePath, urlPreview: supabaseUrl.substring(0, 100) })
 
     // Fetch the image from Supabase Storage using the signed URL
     console.log('Fetching image from Supabase Storage')
     const response = await fetch(supabaseUrl, {
       cache: 'no-store', // Don't cache the fetch, but we'll cache the response
+      headers: {
+        // Ensure we're making a proper HTTP request
+        'User-Agent': 'TruckCheck-Proxy/1.0',
+      },
     })
 
     console.log('Supabase fetch response:', { 

@@ -5,23 +5,23 @@ import { AuthButton } from "./auth-button"
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b-2 border-border/60 bg-background shadow-sm">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between gap-4">
-          <Link href="/" prefetch={true} className="hover:opacity-80 transition-opacity shrink-0">
+        <div className="flex h-[72px] items-center justify-between gap-6">
+          <Link href="/" prefetch={true} className="hover:opacity-80 transition-opacity duration-200 shrink-0">
             <Image
               src="/TRUCKCHECK_LOGO.png"
               alt="TruckCheck"
-              width={140}
-              height={36}
-              className="object-contain h-9"
+              width={160}
+              height={40}
+              className="object-contain h-10"
               priority
             />
           </Link>
           
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-8">
             <Navigation />
-            <div className="hidden md:block h-6 w-px bg-border"></div>
+            <div className="hidden md:block h-8 w-[2px] bg-border/60"></div>
             <AuthButton />
           </div>
         </div>

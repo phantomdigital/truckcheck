@@ -43,15 +43,35 @@ export default function NotFound() {
             Popular pages:
           </p>
           <nav className="flex flex-wrap gap-4 justify-center">
-            {navigationItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="text-sm text-primary hover:underline transition-colors"
-              >
-                {item.title}
-              </Link>
-            ))}
+            {navigationItems.flatMap((item) => {
+              // If item has nested items (dropdown), include those
+              if (item.items && item.items.length > 0) {
+                return item.items
+                  .filter((subItem): subItem is typeof subItem & { href: string } => !!subItem.href)
+                  .map((subItem) => (
+                    <Link
+                      key={subItem.href}
+                      href={subItem.href}
+                      className="text-sm text-primary hover:underline transition-colors"
+                    >
+                      {subItem.title}
+                    </Link>
+                  ))
+              }
+              // Regular item with href
+              if (item.href) {
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="text-sm text-primary hover:underline transition-colors"
+                  >
+                    {item.title}
+                  </Link>
+                )
+              }
+              return null
+            })}
           </nav>
         </div>
       </div>

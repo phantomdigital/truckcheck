@@ -1,12 +1,16 @@
 import Link from "next/link"
 import Image from "next/image"
 import { ResponsiveAd } from "@/components/ezoic"
-import { navigationItems } from "@/lib/navigation"
 import { getSubscriptionStatus } from "@/lib/stripe/actions"
+import { navigationItems } from "@/lib/navigation"
 
 export async function Footer() {
   const currentYear = new Date().getFullYear()
   const { isPro } = await getSubscriptionStatus()
+
+  // Get all tools from navigation items
+  const toolsSection = navigationItems.find(item => item.title === "Tools")
+  const tools = toolsSection?.items?.filter(tool => tool.href && !tool.comingSoon) || []
 
   return (
     <footer className="w-full border-t border-border/50 mt-auto bg-muted/20">
@@ -18,7 +22,7 @@ export async function Footer() {
             </div>
           )}
           {/* Main Footer Content */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             {/* About Section with Logo */}
             <div className="space-y-4">
               <Image
@@ -37,22 +41,17 @@ export async function Footer() {
             <div className="space-y-3">
               <h3 className="text-sm font-semibold">Tools</h3>
               <ul className="space-y-2 text-sm">
-                {navigationItems.map((item) => (
-                  <li key={item.href}>
+                {tools.map((tool) => (
+                  <li key={tool.href}>
                     <Link
-                      href={item.href}
+                      href={tool.href!}
                       prefetch={true}
                       className="text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      {item.title}
+                      {tool.title}
                     </Link>
                   </li>
                 ))}
-                {navigationItems.length === 1 && (
-                  <li className="text-muted-foreground/50">
-                    More tools coming soon
-                  </li>
-                )}
               </ul>
             </div>
 

@@ -389,28 +389,30 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
 
       // Save to history if Pro user (via Server Action)
       if (isPro) {
-        try {
-          const result = await saveCalculationToHistory({
-            baseLocation: finalBaseLocation,
-            stops: finalStops.map(s => ({
-              address: s.address,
-              location: s.location,
-            })),
-            destination: finalDestination,
-            distance,
-            maxDistanceFromBase: calculationResult.maxDistanceFromBase,
-            drivingDistance: calculationResult.drivingDistance,
-            logbookRequired,
-            routeGeometry: calculationResult.routeGeometry,
-          })
-          
-          if (!result.success) {
-            throw new Error(result.error || "Failed to save calculation history")
+        void (async () => {
+          try {
+            const historyResult = await saveCalculationToHistory({
+              baseLocation: finalBaseLocation,
+              stops: finalStops.map(s => ({
+                address: s.address,
+                location: s.location,
+              })),
+              destination: finalDestination,
+              distance,
+              maxDistanceFromBase: calculationResult.maxDistanceFromBase,
+              drivingDistance: calculationResult.drivingDistance,
+              logbookRequired,
+              routeGeometry: calculationResult.routeGeometry,
+            })
+            
+            if (!historyResult.success) {
+              throw new Error(historyResult.error || "Failed to save calculation history")
+            }
+          } catch (error) {
+            // Silently fail - history saving shouldn't block the UI
+            console.error("Failed to save calculation history:", error)
           }
-        } catch (error) {
-          // Silently fail - history saving shouldn't block the UI
-          console.error("Failed to save calculation history:", error)
-        }
+        })()
       }
 
       // Update URL with search parameters (includes all stops)
@@ -418,19 +420,25 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
 
       // Save to recent searches (Pro users only)
       if (isPro) {
-        try {
-          await saveRecentSearch({
-            baseLocation: finalBaseLocation,
-            stops: finalStops.map(stop => stop.location).filter((loc): loc is NonNullable<typeof loc> => loc !== null),
-            distance,
-            logbookRequired,
-          })
-          // Refresh recent searches list after saving
-          recentSearchesRef.current?.refresh()
-        } catch (error) {
-          // Silently fail - recent search saving shouldn't block the UI
-          console.error("Failed to save recent search:", error)
-        }
+        void (async () => {
+          try {
+            const recentSearchResult = await saveRecentSearch({
+              baseLocation: finalBaseLocation,
+              stops: finalStops.map(stop => stop.location).filter((loc): loc is NonNullable<typeof loc> => loc !== null),
+              distance,
+              logbookRequired,
+            })
+            // Refresh recent searches list after saving
+            if (recentSearchResult.success) {
+              recentSearchesRef.current?.refresh()
+            } else if (recentSearchResult.error) {
+              console.error("Failed to save recent search:", recentSearchResult.error)
+            }
+          } catch (error) {
+            // Silently fail - recent search saving shouldn't block the UI
+            console.error("Failed to save recent search:", error)
+          }
+        })()
       }
     } catch (err) {
       console.error("Error in handleCalculate:", err)

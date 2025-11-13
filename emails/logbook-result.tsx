@@ -18,7 +18,17 @@ interface LogbookResultEmailProps {
   generatedDate: string
 }
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://truckcheck.com.au'
+// Get site URL for email - ensure it's publicly accessible (not localhost)
+// Email clients need absolute URLs that are accessible from the internet
+const getEmailSiteUrl = (): string => {
+  const envUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl
+  }
+  // Fallback to production URL - email clients need publicly accessible URLs
+  return 'https://truckcheck.com.au'
+}
+const siteUrl = getEmailSiteUrl()
 const logoUrl = `${siteUrl}/TRUCKCHECK_LOGO.png`
 
 export function LogbookResultEmail({
@@ -167,16 +177,8 @@ export function LogbookResultEmail({
                       src={mapImageUrl}
                       alt="Route map"
                       width="550"
-                      height="auto"
                       style={mapImage}
                     />
-                  </td>
-                </tr>
-                <tr>
-                  <td align="center" style={debugUrlWrapper}>
-                    <Text style={debugUrlText}>
-                      Image URL: {mapImageUrl}
-                    </Text>
                   </td>
                 </tr>
               </table>
@@ -470,27 +472,13 @@ const mapWrapper = {
 
 const mapImage = {
   maxWidth: '550px',
-  width: '100%',
-  height: 'auto',
+  width: '550px',
   borderRadius: '8px',
   border: '1px solid #d1d5db',
   display: 'block',
   margin: '0 auto',
-}
-
-const debugUrlWrapper = {
-  padding: '8px 0 0 0',
-  margin: '0',
-}
-
-const debugUrlText = {
-  color: '#6b7280',
-  fontSize: '8px',
-  lineHeight: '1.4',
-  margin: '0',
-  padding: '0',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  wordBreak: 'break-all' as const,
+  // Don't set height - let it scale proportionally based on width
+  // Email clients handle this better than height: auto
 }
 
 const distanceTable = {

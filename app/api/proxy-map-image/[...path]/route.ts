@@ -1,48 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createServiceRoleClient } from '@/lib/supabase/server'
 
 /**
  * Proxy route to serve Supabase Storage images through our domain
  * This ensures images are served from our domain for better email deliverability
  * 
- * The signed URL from Supabase is passed as a query parameter and we fetch it,
- * then serve it through our domain
+ * Format: /api/proxy-map-image/{filePath}
+ * Example: /api/proxy-map-image/user-id/map-1234567890-abc123.jpeg
+ * 
+ * The file path is URL-encoded, so we decode it and use it to generate a signed URL on-demand
  */
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { path: string[] } }
+) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const supabaseUrl = searchParams.get('url')
-
+    // Reconstruct the file path from path segments (URL decode it)
+    const filePath = params.path.map(segment => decodeURIComponent(segment)).join('/')
+    
     console.log('Proxy map image request:', { 
-      hasUrl: !!supabaseUrl,
-      urlPreview: supabaseUrl ? supabaseUrl.substring(0, 100) : null 
+      pathSegments: params.path.length,
+      filePath
     })
 
-    if (!supabaseUrl) {
-      console.error('Missing url parameter')
+    if (!filePath) {
+      console.error('Missing file path')
       return NextResponse.json(
-        { error: 'Missing url parameter' },
+        { error: 'Missing image path' },
         { status: 400 }
       )
     }
 
-    // Validate that the URL is from our Supabase instance
-    const expectedSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    console.log('Validating Supabase URL:', { 
-      expected: expectedSupabaseUrl,
-      provided: supabaseUrl.substring(0, 100),
-      matches: expectedSupabaseUrl ? supabaseUrl.startsWith(expectedSupabaseUrl) : false
-    })
-
-    if (!expectedSupabaseUrl || !supabaseUrl.startsWith(expectedSupabaseUrl)) {
-      console.error('Invalid image URL - not from expected Supabase instance')
+    // Validate file path format (should be userId/filename)
+    if (!filePath.includes('/') || filePath.split('/').length !== 2) {
+      console.error('Invalid file path format:', filePath)
       return NextResponse.json(
-        { error: 'Invalid image URL' },
+        { error: 'Invalid image path format' },
         { status: 400 }
       )
     }
+
+    // Generate signed URL on-demand using the file path
+    const supabase = createServiceRoleClient()
+    
+    // Create signed URL (valid for 1 year - emails need long-lived URLs)
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+      .from('map-images')
+      .createSignedUrl(filePath, 31536000) // 1 year in seconds
+
+    if (signedUrlError || !signedUrlData) {
+      console.error('Error creating signed URL:', signedUrlError)
+      return NextResponse.json(
+        { error: 'Failed to generate image URL', details: signedUrlError?.message },
+        { status: 500 }
+      )
+    }
+
+    const supabaseUrl = signedUrlData.signedUrl
+    console.log('Generated signed URL for file path:', { filePath, urlPreview: supabaseUrl.substring(0, 100) })
 
     // Fetch the image from Supabase Storage using the signed URL
-    console.log('Fetching image from Supabase:', supabaseUrl.substring(0, 150))
+    console.log('Fetching image from Supabase Storage')
     const response = await fetch(supabaseUrl, {
       cache: 'no-store', // Don't cache the fetch, but we'll cache the response
     })
@@ -76,11 +94,13 @@ export async function GET(request: NextRequest) {
       contentType 
     })
 
-    // Return the image with appropriate headers
+    // Return the image with appropriate headers for email clients
     return new NextResponse(imageBuffer, {
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=31536000, immutable', // Cache for 1 year
+        'Access-Control-Allow-Origin': '*', // Allow email clients to fetch
+        'Access-Control-Allow-Methods': 'GET',
       },
     })
   } catch (error) {

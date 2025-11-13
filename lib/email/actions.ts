@@ -85,25 +85,63 @@ export async function sendLogbookEmail({
   }
 
   try {
+    // Get the site URL for email images - must be publicly accessible (not localhost)
+    // Use server-side env var, fallback to production URL
+    // Never use localhost as email clients can't access it
+    const getEmailSiteUrl = (): string => {
+      const envUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL
+      if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+        return envUrl
+      }
+      // Fallback to production URL - email clients need publicly accessible URLs
+      return 'https://staging.truckcheck.com.au'
+    }
+    const siteUrl = getEmailSiteUrl()
+
     // If mapImageUrl is a base64 data URL, upload it to Supabase Storage first
     let finalMapImageUrl = mapImageUrl
     if (mapImageUrl && mapImageUrl.startsWith('data:image/')) {
       console.log('Uploading map image to Supabase Storage for user:', user.id)
-      const uploadedUrl = await uploadMapImage(mapImageUrl, user.id)
-      if (uploadedUrl) {
-        // Proxy the Supabase URL through our domain
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://staging.truckcheck.com.au'
-        finalMapImageUrl = `${siteUrl}/api/proxy-map-image?url=${encodeURIComponent(uploadedUrl)}`
+      const filePath = await uploadMapImage(mapImageUrl, user.id)
+      if (filePath) {
+        // Use the file path directly in the proxy URL
+        // Encode each segment separately to preserve the / separator
+        // Format: userId/filename -> /api/proxy-map-image/userId/filename
+        const encodedPath = filePath.split('/').map(segment => encodeURIComponent(segment)).join('/')
+        finalMapImageUrl = `${siteUrl}/api/proxy-map-image/${encodedPath}`
         console.log('Map image URL generated:', { 
-          originalSignedUrl: uploadedUrl,
-          proxiedUrl: finalMapImageUrl 
+          filePath,
+          proxiedUrl: finalMapImageUrl,
+          siteUrl
         })
       } else {
         console.error('Failed to upload map image, using base64 fallback')
         // Continue with base64 if upload fails
       }
     } else if (mapImageUrl) {
-      console.log('Map image URL is not base64, using as-is:', mapImageUrl.substring(0, 100))
+      // If it's already a URL, ensure it's absolute and publicly accessible
+      if (mapImageUrl.startsWith('http://') || mapImageUrl.startsWith('https://')) {
+        // Already an absolute URL, use as-is
+        finalMapImageUrl = mapImageUrl
+        console.log('Map image URL is already absolute, using as-is:', mapImageUrl.substring(0, 100))
+      } else if (mapImageUrl.startsWith('/')) {
+        // Relative URL - make it absolute using site URL
+        finalMapImageUrl = `${siteUrl}${mapImageUrl}`
+        console.log('Map image URL was relative, made absolute:', finalMapImageUrl)
+      } else {
+        // Might be a file path - convert to proxy URL
+        // Format: userId/filename -> /api/proxy-map-image/userId/filename
+        if (mapImageUrl.includes('/') && !mapImageUrl.includes('://')) {
+          // Encode each segment separately to preserve the / separator
+          const encodedPath = mapImageUrl.split('/').map(segment => encodeURIComponent(segment)).join('/')
+          finalMapImageUrl = `${siteUrl}/api/proxy-map-image/${encodedPath}`
+          console.log('Converted file path to proxy URL:', finalMapImageUrl)
+        } else {
+          // Unknown format, use as-is but log warning
+          console.warn('Map image URL format unknown, using as-is:', mapImageUrl.substring(0, 100))
+          finalMapImageUrl = mapImageUrl
+        }
+      }
     }
 
     // Send email with Resend and React Email

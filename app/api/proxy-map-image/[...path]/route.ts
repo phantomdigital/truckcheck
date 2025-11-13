@@ -12,9 +12,12 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
+    // Await params (Next.js 15+ requires params to be awaited)
+    const resolvedParams = await params
+    
     // Check if this is the old query-parameter format
     const url = new URL(request.url)
     const queryUrl = url.searchParams.get('url')
@@ -29,10 +32,10 @@ export async function GET(
     } else {
       // New format: /api/proxy-map-image/{filePath}
       // Reconstruct the file path from path segments (URL decode it)
-      const filePath = params.path.map(segment => decodeURIComponent(segment)).join('/')
+      const filePath = resolvedParams.path.map(segment => decodeURIComponent(segment)).join('/')
       
       console.log('Proxy map image request (path-based):', { 
-        pathSegments: params.path.length,
+        pathSegments: resolvedParams.path.length,
         filePath
       })
 

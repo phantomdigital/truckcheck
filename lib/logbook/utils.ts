@@ -2,6 +2,30 @@ import type { GeocodeResult, RouteData } from "./types"
 import { safeCaptureException } from "@/lib/sentry/utils"
 
 /**
+ * Fetch with timeout wrapper to prevent indefinite hangs
+ */
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+    return response
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      const timeoutSeconds = Math.round(timeoutMs / 1000)
+      throw new Error(`Request timed out after ${timeoutSeconds} seconds. Please try again.`)
+    }
+    throw error
+  }
+}
+
+/**
  * Haversine formula to calculate distance between two points (as the crow flies)
  * Returns distance in kilometers
  */
@@ -34,8 +58,11 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult> {
   
   try {
     // Use Mapbox Geocoding API (Australia-focused)
-    const response = await fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?country=AU&access_token=${mapboxToken}&limit=1`
+    // 30 second timeout to prevent indefinite hangs
+    const response = await fetchWithTimeout(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?country=AU&access_token=${mapboxToken}&limit=1`,
+      {},
+      30000 // 30 seconds
     )
 
     if (!response.ok) {
@@ -62,8 +89,11 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult> {
 
     return { lat, lng, placeName }
   } catch (error) {
-    // Re-throw user-facing errors (not found) without tracking
-    if (error instanceof Error && error.message.includes("Could not find location")) {
+    // Re-throw user-facing errors (not found, timeout) without tracking
+    if (error instanceof Error && (
+      error.message.includes("Could not find location") ||
+      error.message.includes("timed out")
+    )) {
       throw error
     }
     // Track unexpected errors
@@ -100,8 +130,11 @@ export async function calculateDrivingDistance(
 
     // Use Mapbox Directions API to get driving route with multiple waypoints
     // overview=full gives detailed geometry that follows roads closely
-    const response = await fetch(
-      `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}?geometries=geojson&overview=full&access_token=${mapboxToken}`
+    // 60 second timeout to prevent indefinite hangs (routes can take longer)
+    const response = await fetchWithTimeout(
+      `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}?geometries=geojson&overview=full&access_token=${mapboxToken}`,
+      {},
+      60000 // 60 seconds
     )
 
     if (!response.ok) {
@@ -156,10 +189,18 @@ export async function calculateDrivingDistance(
     return null
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
-    safeCaptureException(err, {
-      context: "calculate_driving_distance_unexpected_error",
-      waypointCount: waypoints.length,
-    })
+    // Track timeout errors separately for monitoring
+    if (err.message.includes("timed out")) {
+      safeCaptureException(err, {
+        context: "calculate_driving_distance_timeout",
+        waypointCount: waypoints.length,
+      })
+    } else {
+      safeCaptureException(err, {
+        context: "calculate_driving_distance_unexpected_error",
+        waypointCount: waypoints.length,
+      })
+    }
     console.error("Error calculating driving distance:", error)
     return null
   }

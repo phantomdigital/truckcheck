@@ -202,6 +202,11 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
   }, [searchParams, isInitialized, isPro])
 
   const handleCalculate = async () => {
+    // Prevent concurrent executions - extra safety guard
+    if (loading) {
+      return
+    }
+
     // SECURITY: Validate stops count for Pro feature
     if (stops.length > 1 && !isPro) {
       toast.error("Pro Subscription Required", {
@@ -217,6 +222,14 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
     setLoading(true)
     setError(null)
     setResult(null)
+
+    // Extra safety: Timeout fallback to ensure loading state is reset (90 seconds max)
+    // This is a failsafe in case something unexpected happens
+    const timeoutFallback = setTimeout(() => {
+      console.warn("Calculation timeout fallback triggered - resetting loading state")
+      setLoading(false)
+      setError("Calculation took too long. Please try again.")
+    }, 90000) // 90 seconds - longer than route calculation timeout
 
     try {
       // Validate and geocode base location
@@ -386,6 +399,7 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred while calculating the distance")
     } finally {
+      clearTimeout(timeoutFallback)
       setLoading(false)
     }
   }

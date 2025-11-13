@@ -342,34 +342,34 @@ export const PrintResult = forwardRef<HTMLDivElement, PrintResultProps>(
           }
         `}</style>
 
-        {/* Header with Logo */}
-        <div className="mb-6 pb-4 border-b border-gray-300 no-break">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <img 
-                src="/TRUCKCHECK_LOGO.png" 
-                alt="TruckCheck Logo" 
-                className="h-12 w-auto"
-                style={{ maxHeight: "48px", objectFit: "contain" }}
-              />
-              <div>
-                <h1 className="text-lg font-bold text-gray-900 mb-0.5">
+        {/* Header - Compact design for horizontal logo */}
+        <div className="mb-4 pb-3 border-b border-gray-300 no-break">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <img 
+                  src="/TRUCKCHECK_LOGO.png" 
+                  alt="TruckCheck" 
+                  className="h-6 w-auto"
+                  style={{ maxHeight: "24px", objectFit: "contain" }}
+                />
+                <h1 className="text-[12pt] font-bold text-gray-900">
                   Work Diary Requirement Analysis
                 </h1>
-                <p className="text-[9pt] text-gray-600">
-                  100km Radius Check - truckcheck.com.au
-                </p>
               </div>
+              <p className="text-[7pt] text-gray-600">
+                100km Radius Check - truckcheck.com.au
+              </p>
             </div>
-            <div className="text-right">
-              <p className="text-[9pt] text-gray-700 font-medium">
+            <div className="text-right shrink-0 ml-4">
+              <p className="text-[8pt] text-gray-700 font-medium">
                 {new Date().toLocaleDateString("en-AU", {
                   day: "2-digit",
                   month: "short",
                   year: "numeric",
                 })}
               </p>
-              <p className="text-[8pt] text-gray-600">
+              <p className="text-[7pt] text-gray-600">
                 {new Date().toLocaleTimeString("en-AU", {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -379,46 +379,39 @@ export const PrintResult = forwardRef<HTMLDivElement, PrintResultProps>(
           </div>
         </div>
 
-        {/* Main Result */}
-        <div className={`mb-4 p-4 rounded-lg border-2 no-break ${
+        {/* Main Result - Compact design */}
+        <div className={`mb-3 p-3 rounded-lg border-2 no-break ${
           result.logbookRequired
             ? "border-red-600 bg-red-50"
             : "border-green-600 bg-green-50"
         }`}>
-          <div className="flex items-center gap-3 mb-2">
-            <div className={`flex items-center justify-center w-12 h-12 rounded-full ${
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${
               result.logbookRequired
                 ? "bg-red-100 text-red-600"
                 : "bg-green-100 text-green-600"
             }`}>
               {result.logbookRequired ? (
-                <BookX size={24} strokeWidth={2} />
+                <BookX size={16} strokeWidth={2} />
               ) : (
-                <BookCheck size={24} strokeWidth={2} />
+                <BookCheck size={16} strokeWidth={2} />
               )}
             </div>
-            <div>
-              <h2 className={`text-2xl font-bold ${
+            <div className="flex-1 min-w-0">
+              <h2 className={`text-[13pt] font-bold mb-0.5 ${
                 result.logbookRequired ? "text-red-700" : "text-green-700"
               }`}>
                 Work Diary {result.logbookRequired ? "REQUIRED" : "NOT REQUIRED"}
               </h2>
-              <p className={`text-[9pt] font-medium ${
-                result.logbookRequired ? "text-red-600" : "text-green-600"
+              <p className={`text-[8pt] leading-snug ${
+                result.logbookRequired ? "text-red-700" : "text-green-700"
               }`}>
                 {result.logbookRequired
-                  ? "Logbook must be maintained for this journey"
-                  : "Logbook not required - within 100km radius"}
+                  ? "Based on distance calculations, you are travelling more than 100km from your base. A work diary (logbook) is required under NHVR regulations."
+                  : "Based on distance calculations, you are travelling within 100km of your base. No work diary (logbook) is required under NHVR regulations."}
               </p>
             </div>
           </div>
-          <p className={`text-[9pt] leading-relaxed ${
-            result.logbookRequired ? "text-red-700" : "text-green-700"
-          }`}>
-            {result.logbookRequired
-              ? "Based on distance calculations, you are travelling more than 100km from your base. A work diary (logbook) is required under NHVR regulations."
-              : "Based on distance calculations, you are travelling within 100km of your base. No work diary (logbook) is required under NHVR regulations."}
-          </p>
         </div>
 
         {/* Close to Threshold Warning */}
@@ -436,17 +429,17 @@ export const PrintResult = forwardRef<HTMLDivElement, PrintResultProps>(
               if (isJustUnder) {
               const usingMaxDistance = result.maxDistanceFromBase !== null && result.maxDistanceFromBase !== result.distance
               return (
-                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg no-break">
-                  <div className="space-y-1">
+                <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg no-break">
+                  <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
-                      <div className="text-[12pt] font-bold text-amber-900">
+                      <div className="text-[10pt] font-bold text-amber-900">
                         {relevantDistance.toFixed(1)} km
                       </div>
-                      <div className="text-[9pt] font-medium text-amber-700 uppercase tracking-wide">
+                      <div className="text-[8pt] font-medium text-amber-700 uppercase tracking-wide">
                         {usingMaxDistance ? 'Max from Base — ' : ''}Close to Threshold
                       </div>
                     </div>
-                    <p className="text-[9pt] text-amber-800 leading-relaxed">
+                    <p className="text-[8pt] text-amber-800 leading-snug">
                       {usingMaxDistance 
                         ? `Your route takes you ${relevantDistance.toFixed(1)} km from base at the furthest point. Consider keeping a work diary anyway — GPS variations, detours, or route changes could push you over the 100km radius.`
                         : `You're just under the 100km radius. Consider keeping a work diary anyway — GPS variations, detours, or route changes could push you over the limit.`
@@ -460,17 +453,17 @@ export const PrintResult = forwardRef<HTMLDivElement, PrintResultProps>(
             if (isJustOver) {
               const usingMaxDistance = result.maxDistanceFromBase !== null && result.maxDistanceFromBase !== result.distance
               return (
-                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg no-break">
-                  <div className="space-y-1">
+                <div className="mb-3 p-2 bg-amber-50 border border-amber-200 rounded-lg no-break">
+                  <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
-                      <div className="text-[12pt] font-bold text-amber-900">
+                      <div className="text-[10pt] font-bold text-amber-900">
                         {relevantDistance.toFixed(1)} km
                       </div>
-                      <div className="text-[9pt] font-medium text-amber-700 uppercase tracking-wide">
+                      <div className="text-[8pt] font-medium text-amber-700 uppercase tracking-wide">
                         {usingMaxDistance ? 'Max from Base — ' : ''}Just Over Threshold
                       </div>
                     </div>
-                    <p className="text-[9pt] text-amber-800 leading-relaxed">
+                    <p className="text-[8pt] text-amber-800 leading-snug">
                       {usingMaxDistance
                         ? `Your route takes you ${relevantDistance.toFixed(1)} km from base at the furthest point. A work diary is required for this journey under NHVR regulations.`
                         : `You're just over the 100km requirement. A work diary is required for this journey under NHVR regulations.`
@@ -534,51 +527,42 @@ export const PrintResult = forwardRef<HTMLDivElement, PrintResultProps>(
           </div>
         )}
 
-        {/* Distance Information */}
+        {/* Distance Information - Compact cards */}
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3 pb-1.5 border-b border-gray-300 flex items-center gap-2">
-            <TrendingUp size={16} />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2 pb-1 border-b border-gray-300 flex items-center gap-2">
+            <TrendingUp size={14} />
             Distance Summary
           </h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-gray-50 p-3 rounded-lg border border-gray-300 no-break">
-              <div className="text-[9pt] text-gray-600 mb-1 font-medium">
-                Crow Flies Distance
+          <div className="flex flex-wrap gap-2">
+            <div className="bg-gray-50 px-2.5 py-1.5 rounded border border-gray-300 no-break">
+              <div className="text-[7pt] text-gray-600 mb-0.5 font-medium">
+                As The Crow Flies
               </div>
-              <div className="text-[16pt] font-bold text-gray-900">
+              <div className="text-[11pt] font-bold text-gray-900">
                 {result.distance.toFixed(1)} km
-              </div>
-              <div className="text-[8pt] text-gray-500 mt-0.5">
-                Straight-line distance to final destination
               </div>
             </div>
             {result.maxDistanceFromBase !== null && (
-              <div className={`p-3 rounded-lg border no-break ${
+              <div className={`px-2.5 py-1.5 rounded border no-break ${
                 result.maxDistanceFromBase > 100
                   ? "bg-amber-50 border-amber-300"
                   : "bg-gray-50 border-gray-300"
               }`}>
-                <div className="text-[9pt] text-gray-600 mb-1 font-medium">
-                  Furthest Point from Base
+                <div className="text-[7pt] text-gray-600 mb-0.5 font-medium">
+                  Max from Base
                 </div>
-                <div className="text-[16pt] font-bold text-gray-900">
+                <div className="text-[11pt] font-bold text-gray-900">
                   {result.maxDistanceFromBase.toFixed(1)} km
-                </div>
-                <div className="text-[8pt] text-gray-500 mt-0.5">
-                  How far you travel from base
                 </div>
               </div>
             )}
             {result.drivingDistance !== null && (
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-300 no-break">
-                <div className="text-[9pt] text-gray-600 mb-1 font-medium">
-                  Total Driving Distance
+              <div className="bg-gray-50 px-2.5 py-1.5 rounded border border-gray-300 no-break">
+                <div className="text-[7pt] text-gray-600 mb-0.5 font-medium">
+                  Driving Distance
                 </div>
-                <div className="text-[16pt] font-bold text-gray-900">
+                <div className="text-[11pt] font-bold text-gray-900">
                   {result.drivingDistance.toFixed(1)} km
-                </div>
-                <div className="text-[8pt] text-gray-500 mt-0.5">
-                  Total km you'll drive on this trip
                 </div>
               </div>
             )}
@@ -588,39 +572,39 @@ export const PrintResult = forwardRef<HTMLDivElement, PrintResultProps>(
         {/* Important Notice */}
         {result.maxDistanceFromBase !== null && 
          result.maxDistanceFromBase > result.distance + 5 && (
-          <div className="mb-4 p-3 bg-amber-50 border-l-4 border-amber-500 rounded no-break">
-            <h4 className="font-semibold text-amber-900 mb-1.5 text-[10pt]">Important: Crow Flies vs Actual Route Distance</h4>
-            <p className="text-[9pt] text-amber-800 leading-relaxed">
+          <div className="mb-3 p-2 bg-amber-50 border-l-4 border-amber-500 rounded no-break">
+            <h4 className="font-semibold text-amber-900 mb-1 text-[9pt]">Important: Crow Flies vs Actual Route Distance</h4>
+            <p className="text-[8pt] text-amber-800 leading-snug">
               <strong>Your destination is {result.distance.toFixed(1)} km away</strong> (as the crow flies), 
               but to get there <strong>you'll travel {result.maxDistanceFromBase.toFixed(1)} km from base</strong> along the actual driving route 
               (a difference of {(result.maxDistanceFromBase - result.distance).toFixed(1)} km). 
               NHVR regulations are based on the actual distance you travel from base, not just the crow flies distance to your destination.
             </p>
             {result.maxDistanceFromBase > 100 && result.distance <= 100 && (
-              <p className="text-[9pt] font-semibold text-amber-900 mt-1.5 leading-relaxed">
+              <p className="text-[8pt] font-semibold text-amber-900 mt-1 leading-snug">
                 Important: Even though your destination is within the 100km radius (as the crow flies), the actual route takes you beyond 100km from base, so a work diary IS required.
               </p>
             )}
           </div>
         )}
 
-        {/* Footer */}
-        <div className="mt-6 pt-4 border-t border-gray-300">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <p className="text-[8pt] text-gray-600 mb-1.5 leading-snug">
-                <span className="font-bold">Disclaimer:</span> This tool is for reference only and should not be considered legal advice. Always consult the official NHVR regulations and guidelines. While we strive for accuracy, we cannot guarantee the results are error-free. Use at your own discretion.
+        {/* Footer - Compact design */}
+        <div className="mt-4 pt-3 border-t border-gray-300">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[6.5pt] text-gray-600 mb-1 leading-tight">
+                <span className="font-semibold">Disclaimer:</span> This tool is for reference only and should not be considered legal advice. Always consult the official NHVR regulations and guidelines. While we strive for accuracy, we cannot guarantee the results are error-free. Use at your own discretion.
               </p>
-              <p className="text-[8pt] text-gray-500">
-                Generated by truckcheck.com.au/logbook-calculator - Work Diary Requirement Calculator
+              <p className="text-[6pt] text-gray-500">
+                Generated by truckcheck.com.au/100km-distance-checker-as-the-crow-flies
               </p>
             </div>
-            <div className="text-right shrink-0">
+            <div className="text-right shrink-0 ml-2">
               <img 
                 src="/TRUCKCHECK_LOGO.png" 
                 alt="TruckCheck" 
-                className="h-8 w-auto opacity-60"
-                style={{ maxHeight: "32px", objectFit: "contain" }}
+                className="h-5 w-auto opacity-50"
+                style={{ maxHeight: "20px", objectFit: "contain" }}
               />
             </div>
           </div>

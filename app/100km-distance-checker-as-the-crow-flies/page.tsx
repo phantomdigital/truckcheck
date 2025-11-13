@@ -13,25 +13,27 @@ import {
 
 // SEO-optimised metadata using Australian English
 export const metadata: Metadata = generatePageMetadata({
-  title: "NHVR Logbook Calculator | 100km Distance Check Australia",
+  title: "100km Distance Checker - As The Crow Flies | NHVR Logbook Requirement Tool",
   description:
-    "Free NHVR logbook calculator for Australian truck drivers. Check if you need a work diary (logbook) for your trip. Calculate straight-line and driving distance. Support for multiple stops. 100km radius compliance tool.",
-  path: "/nhvr-logbook-checker",
+    "Check if you need a work diary (logbook) for your trip. Under NHVR rules, if you're travelling within 100km of your base as the crow flies, you don't need a logbook. Free distance checker for Australian truck drivers. Calculate distance as the crow flies and actual driving distance. Support for multiple stops.",
+  path: "/100km-distance-checker-as-the-crow-flies",
   keywords: [
-    "NHVR 100km calculator",
-    "logbook calculator Australia",
-    "work diary calculator",
+    "100km distance checker",
+    "as the crow flies distance checker",
+    "NHVR 100km rule",
     "do I need a logbook",
-    "truck driver logbook",
+    "work diary requirement checker",
+    "logbook requirement Australia",
+    "distance from base as the crow flies",
+    "truck driver logbook requirement",
     "NHVR compliance tool",
-    "100km radius calculator",
-    "distance from base calculator",
+    "100km radius checker",
     "Australian truck driver tools",
-    "fleet management calculator",
+    "fleet management tool",
     "NHVR regulations",
     "work diary requirements",
     "truck driver compliance",
-    "logbook requirements Australia",
+    "as the crow flies distance",
   ],
 })
 
@@ -46,8 +48,8 @@ function PageHeader() {
         url: "https://truckcheck.com.au",
       },
       {
-        name: "NHVR Logbook Calculator",
-        url: "https://truckcheck.com.au/nhvr-logbook-checker",
+        name: "100km Distance Checker - As The Crow Flies",
+        url: "https://truckcheck.com.au/100km-distance-checker-as-the-crow-flies",
       },
     ])
   )
@@ -71,7 +73,7 @@ function PageHeader() {
                 Home
               </a>
               <span>/</span>
-              <span>Logbook Calculator</span>
+              <span>100km Distance Checker</span>
             </nav>
 
             {/* Title and Description - Critical SEO content */}
@@ -80,8 +82,8 @@ function PageHeader() {
                 Do I Need My Logbook Today?
               </h1>
               <p className="text-base sm:text-lg text-muted-foreground max-w-3xl leading-relaxed">
-                Working within 100km of your base? You don't need a work diary. Travelling further? You do.
-                Calculate the straight-line distance between your base and destination in seconds to stay NHVR compliant.
+                Under NHVR rules, if you're travelling within 100km of your base <strong>as the crow flies</strong>, you don't need a work diary. Travelling further? You do.
+                Check the distance as the crow flies between your base and destination to determine if a logbook is required.
               </p>
               <p className="text-sm text-muted-foreground/80 max-w-2xl">
                 Free tool for Australian truck drivers and fleet managers. No sign-up required.

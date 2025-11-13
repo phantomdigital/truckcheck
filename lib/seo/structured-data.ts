@@ -59,12 +59,12 @@ export function getBreadcrumbSchema(items: Array<{ name: string; url: string }>)
   }
 }
 
-// SoftwareApplication schema for the NHVR Logbook Calculator
+// SoftwareApplication schema for the 100km Distance Checker
 export function getNHVRCalculatorSchema() {
   return {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "NHVR Logbook Calculator",
+    name: "100km Distance Checker - As The Crow Flies",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Any",
     offers: {
@@ -80,7 +80,7 @@ export function getNHVRCalculatorSchema() {
       worstRating: "1",
     },
     description:
-      "Free NHVR logbook calculator for Australian truck drivers. Check if you need to complete a work diary (logbook) based on the 100km radius rule. Calculate straight-line and driving distances with multiple stops support.",
+      "Free distance checker for Australian truck drivers. Check if you need a work diary (logbook) based on the 100km rule. Under NHVR regulations, if you're travelling within 100km of your base as the crow flies, you don't need a logbook. Calculate distance as the crow flies and actual driving distance with multiple stops support.",
     featureList: [
       "Calculate distance from base location",
       "Support for multiple stops and waypoints",
@@ -145,15 +145,15 @@ export function getNHVRFAQSchema() {
         name: "Can I check multiple stops along my route?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes, the NHVR Logbook Calculator supports multiple stops and waypoints. It will calculate both the straight-line distance to your final destination and the maximum distance from your base along your actual driving route, helping you determine if a logbook is required for complex multi-stop journeys.",
+          text: "Yes, the 100km Distance Checker supports multiple stops and waypoints. It will calculate both the distance as the crow flies to your final destination and the maximum distance from your base along your actual driving route, helping you determine if a logbook is required for complex multi-stop journeys.",
         },
       },
       {
         "@type": "Question",
-        name: "Is this calculator free to use?",
+        name: "Is this distance checker free to use?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes, the NHVR Logbook Calculator is completely free to use for Australian truck drivers and fleet managers. There are no hidden fees or subscription requirements.",
+          text: "Yes, the 100km Distance Checker is completely free to use for Australian truck drivers and fleet managers. There are no hidden fees or subscription requirements.",
         },
       },
     ],

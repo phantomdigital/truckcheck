@@ -6,7 +6,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // Define your routes with their metadata
   const routes = [
     {
-      url: `${baseUrl}/nhvr-logbook-checker`,
+      url: `${baseUrl}/100km-distance-checker-as-the-crow-flies`,
       lastModified: new Date(),
       changeFrequency: "weekly" as const,
       priority: 1.0,

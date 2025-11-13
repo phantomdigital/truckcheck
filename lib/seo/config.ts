@@ -4,7 +4,7 @@ import type { Metadata } from "next"
 export const siteConfig = {
   name: "TruckCheck",
   title: "TruckCheck | Free Tools for Australian Truck Drivers & Fleet Managers",
-  description: "Free online tools for Australian truck drivers and fleet managers. NHVR logbook calculator, distance checker, and compliance tools. Australian English throughout.",
+  description: "Free online tools for Australian truck drivers and fleet managers. 100km distance checker as the crow flies, logbook requirement tool, and compliance tools. Australian English throughout.",
   url: process.env.NEXT_PUBLIC_SITE_URL || "https://truckcheck.com.au",
   ogImage: "/og-image.png",
   locale: "en-AU",
@@ -25,7 +25,8 @@ export const defaultMetadata: Metadata = {
   description: siteConfig.description,
   keywords: [
     "NHVR",
-    "logbook calculator",
+    "100km distance checker",
+    "as the crow flies distance checker",
     "work diary calculator",
     "truck driver tools",
     "Australian truck drivers",

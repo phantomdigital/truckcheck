@@ -125,7 +125,7 @@ export async function saveDepot(depot: {
       }
 
       revalidatePath("/account")
-      revalidatePath("/logbook-calculator")
+      revalidatePath("/100km-distance-checker-as-the-crow-flies")
 
       return { success: true, data: updatedDepot as Depot }
     } catch (error) {
@@ -163,7 +163,7 @@ export async function saveDepot(depot: {
     }
 
     revalidatePath("/account")
-    revalidatePath("/logbook-calculator")
+    revalidatePath("/100km-distance-checker-as-the-crow-flies")
 
     return { success: true, data: newDepot as Depot }
   } catch (error) {
@@ -220,7 +220,7 @@ export async function deleteDepot(depotId: string): Promise<{
   }
 
   revalidatePath("/account")
-  revalidatePath("/logbook-calculator")
+  revalidatePath("/100km-distance-checker-as-the-crow-flies")
 
   return { success: true }
 }

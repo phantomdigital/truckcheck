@@ -80,7 +80,7 @@ export async function saveRecentSearch(search: {
     return { success: false, error: error.message }
   }
 
-  revalidatePath("/logbook-calculator")
+  revalidatePath("/100km-distance-checker-as-the-crow-flies")
   revalidatePath("/account")
   return { success: true, error: null }
 }
@@ -118,7 +118,7 @@ export async function deleteRecentSearch(searchId: string) {
     return { success: false, error: error.message }
   }
 
-  revalidatePath("/logbook-calculator")
+  revalidatePath("/100km-distance-checker-as-the-crow-flies")
   revalidatePath("/account")
   return { success: true, error: null }
 }
@@ -155,7 +155,7 @@ export async function clearRecentSearches() {
     return { success: false, error: error.message }
   }
 
-  revalidatePath("/logbook-calculator")
+  revalidatePath("/100km-distance-checker-as-the-crow-flies")
   revalidatePath("/account")
   return { success: true, error: null }
 }

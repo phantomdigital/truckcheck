@@ -12,9 +12,9 @@ export interface NavItem {
 
 export const navigationItems: NavItem[] = [
   {
-    title: "Logbook Calculator",
-    href: "/logbook-calculator",
-    description: "Check if you need a work diary for your journey",
+    title: "100km Distance Checker",
+    href: "/100km-distance-checker-as-the-crow-flies",
+    description: "Check distance as the crow flies to see if you need a work diary",
   },
   {
     title: "Pricing",

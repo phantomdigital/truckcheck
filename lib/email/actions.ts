@@ -86,15 +86,36 @@ export async function sendLogbookEmail({
 
   try {
     // Get the site URL for email images - must be publicly accessible (not localhost)
-    // Use server-side env var, fallback to production URL
-    // Never use localhost as email clients can't access it
+    // Detect branch/environment and use appropriate URL with bypass parameters for protected deployments
     const getEmailSiteUrl = (): string => {
+      // Check branch/environment (Vercel sets VERCEL_ENV and VERCEL_GIT_COMMIT_REF)
+      const vercelEnv = process.env.VERCEL_ENV // 'production', 'preview', or 'development'
+      const gitBranch = process.env.VERCEL_GIT_COMMIT_REF || process.env.GITHUB_REF_NAME // Branch name
+      const isDevelopBranch = gitBranch === 'develop' || gitBranch === 'staging'
+      const isPreview = vercelEnv === 'preview' || vercelEnv === 'development'
+      
+      console.log('Email site URL detection:', {
+        vercelEnv,
+        gitBranch,
+        isDevelopBranch,
+        isPreview,
+        nextPublicSiteUrl: process.env.NEXT_PUBLIC_SITE_URL
+      })
+      
+      // For develop/staging branch, use staging URL
+      if (isDevelopBranch || (isPreview && !process.env.NEXT_PUBLIC_SITE_URL?.includes('truckcheck.com.au'))) {
+        console.log('Using staging URL for email images (develop branch)')
+        return 'https://staging.truckcheck.com.au'
+      }
+      
+      // Use environment variable if set and valid
       const envUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL
       if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
         return envUrl
       }
-      // Fallback to production URL - email clients need publicly accessible URLs
-      return 'https://staging.truckcheck.com.au'
+      
+      // Fallback to production URL
+      return 'https://truckcheck.com.au'
     }
     const siteUrl = getEmailSiteUrl()
 
@@ -110,15 +131,26 @@ export async function sendLogbookEmail({
         const encodedPath = filePath.split('/').map(segment => encodeURIComponent(segment)).join('/')
         let proxiedUrl = `${siteUrl}/api/proxy-map-image/${encodedPath}`
         
-        // Add Vercel protection bypass for preview/development branches
-        // This allows email clients to access images on protected Vercel deployments
-        const vercelBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || process.env.VERCEL_TOKEN
-        if (vercelBypassSecret) {
+        // Add Vercel protection bypass for preview/development branches (staging URL)
+        // VERCEL_AUTOMATION_BYPASS_SECRET is automatically set by Vercel when Protection Bypass for Automation is enabled
+        // This allows email clients to access images on protected Vercel deployments via query parameter
+        const isStagingUrl = siteUrl.includes('staging.truckcheck.com.au')
+        const vercelBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+        
+        // Always add bypass parameters when using staging URL (protected deployment)
+        // Email clients can't authenticate, so they need the bypass token in the URL
+        if (isStagingUrl && vercelBypassSecret) {
           const bypassParams = new URLSearchParams({
             'x-vercel-protection-bypass': vercelBypassSecret,
             'x-vercel-set-bypass-cookie': 'true',
           })
           proxiedUrl = `${proxiedUrl}?${bypassParams.toString()}`
+          console.log('Added Vercel bypass parameters to email image URL (staging/protected deployment)', {
+            hasBypassSecret: !!vercelBypassSecret,
+            bypassSecretLength: vercelBypassSecret?.length || 0
+          })
+        } else if (isStagingUrl && !vercelBypassSecret) {
+          console.warn('Staging URL detected but VERCEL_AUTOMATION_BYPASS_SECRET not available - email images may fail due to auth protection. Ensure Protection Bypass for Automation is enabled in Vercel.')
         }
         
         finalMapImageUrl = proxiedUrl

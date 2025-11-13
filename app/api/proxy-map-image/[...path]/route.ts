@@ -20,6 +20,17 @@ export async function GET(
     
     // Check if this is the old query-parameter format
     const url = new URL(request.url)
+    
+    // Log bypass parameters for debugging Vercel Authentication Protection
+    const bypassToken = url.searchParams.get('x-vercel-protection-bypass')
+    const setBypassCookie = url.searchParams.get('x-vercel-set-bypass-cookie')
+    console.log('Vercel bypass check:', {
+      hasBypassToken: !!bypassToken,
+      hasSetBypassCookie: !!setBypassCookie,
+      bypassTokenLength: bypassToken?.length || 0,
+      url: url.toString().substring(0, 200)
+    })
+    
     const queryUrl = url.searchParams.get('url')
     
     let supabaseUrl: string

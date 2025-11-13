@@ -174,26 +174,42 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
         setStops(convertedStops)
 
         // Calculate driving distance for URL-loaded results
-        const stopCoordinates = convertedStops
-          .filter(s => s.location)
-          .map(s => ({ lat: s.location!.lat, lng: s.location!.lng }))
-          
-        const routeData = await calculateDrivingDistance(
-          baseLoc.lat,
-          baseLoc.lng,
-          stopCoordinates
-        )
+        // Wrap in try-catch to prevent hanging if API call fails
+        try {
+          const stopCoordinates = convertedStops
+            .filter(s => s.location)
+            .map(s => ({ lat: s.location!.lat, lng: s.location!.lng }))
+            
+          const routeData = await calculateDrivingDistance(
+            baseLoc.lat,
+            baseLoc.lng,
+            stopCoordinates
+          )
 
-        const result: CalculationResult = {
-          distance: parseFloat(distance),
-          drivingDistance: routeData?.distance || null,
-          maxDistanceFromBase: routeData?.maxDistanceFromBase || null,
-          logbookRequired: logbookRequired === "true",
-          baseLocation: baseLoc,
-          stops: convertedStops,
-          routeGeometry: routeData?.routeGeometry || null,
+          const result: CalculationResult = {
+            distance: parseFloat(distance),
+            drivingDistance: routeData?.distance || null,
+            maxDistanceFromBase: routeData?.maxDistanceFromBase || null,
+            logbookRequired: logbookRequired === "true",
+            baseLocation: baseLoc,
+            stops: convertedStops,
+            routeGeometry: routeData?.routeGeometry || null,
+          }
+          setResult(result)
+        } catch (error) {
+          // If route calculation fails, still show the result with straight-line distance
+          console.error("Failed to calculate route for URL-loaded result:", error)
+          const result: CalculationResult = {
+            distance: parseFloat(distance),
+            drivingDistance: null,
+            maxDistanceFromBase: null,
+            logbookRequired: logbookRequired === "true",
+            baseLocation: baseLoc,
+            stops: convertedStops,
+            routeGeometry: null,
+          }
+          setResult(result)
         }
-        setResult(result)
       }
     }
 
@@ -242,6 +258,7 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
         toast.error("Validation Error", {
           description: errorMsg,
         })
+        clearTimeout(timeoutFallback)
         setLoading(false)
         return
       } else {
@@ -254,6 +271,7 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
           toast.error("Geocoding Error", {
             description: errorMsg,
           })
+          clearTimeout(timeoutFallback)
           setLoading(false)
           return
         }
@@ -280,6 +298,7 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
           toast.error("Validation Error", {
             description: errorMsg,
           })
+          clearTimeout(timeoutFallback)
           setLoading(false)
           return
         } else {
@@ -294,6 +313,7 @@ export default function LogbookChecker({ isPro = false }: LogbookCheckerProps) {
             toast.error("Geocoding Error", {
               description: errorMsg,
             })
+            clearTimeout(timeoutFallback)
             setLoading(false)
             return
           }

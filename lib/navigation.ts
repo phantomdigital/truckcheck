@@ -4,7 +4,7 @@
  */
 
 import type { LucideIcon } from "lucide-react"
-import { Navigation as NavigationIcon } from "lucide-react"
+import { Navigation as NavigationIcon, Truck } from "lucide-react"
 
 export interface NavItem {
   title: string
@@ -24,6 +24,12 @@ export const navigationItems: NavItem[] = [
         href: "/100km-distance-checker-as-the-crow-flies",
         description: "Check distance as the crow flies to see if you need a work diary",
         icon: NavigationIcon,
+      },
+      {
+        title: "Load Calculator",
+        href: "/load-calculator",
+        description: "Plan your truck load and calculate weight distribution",
+        icon: Truck,
       },
       // Add more tools here as they're created
       // Example:

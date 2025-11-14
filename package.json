@@ -33,6 +33,7 @@
     "framer-motion": "^12.23.24",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.3",
+    "konva": "^10.0.9",
     "lucide-react": "^0.553.0",
     "mapbox-gl": "^3.16.0",
     "next": "16.0.1",
@@ -41,12 +42,15 @@
     "posthog-node": "^5.11.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "react-draggable": "^4.5.0",
     "react-email": "^5.0.3",
+    "react-konva": "^19.2.0",
     "react-to-print": "^3.2.0",
     "resend": "^6.4.2",
     "sonner": "^2.0.7",
     "stripe": "^19.3.0",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

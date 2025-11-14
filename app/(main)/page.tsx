@@ -5,3 +5,4 @@ export default function Home() {
   // In the future, this can be a landing page with multiple tools
   redirect("/100km-distance-checker-as-the-crow-flies")
 }
+

@@ -83,12 +83,23 @@ export async function Footer() {
 
           {/* Disclaimer */}
           <div className="py-6 border-t border-border/50">
-            <div className="flex items-start gap-2 mb-6">
-              <span className="text-xs text-muted-foreground shrink-0 mt-0.5"></span>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                <strong>Disclaimer:</strong> This tool is for reference only and should not be considered legal advice. 
-                Always consult the official NHVR regulations and guidelines. While we strive for accuracy, 
-                we cannot guarantee the results are error-free. Use at your own discretion.
+            <div className="space-y-4 mb-6">
+              <p className="text-sm text-muted-foreground text-center leading-relaxed">
+                TruckCheck is an independent planning tool and is not affiliated with or endorsed by the NHVR. 
+                Always verify results and consult official NHVR regulations at{' '}
+                <a 
+                  href="https://www.nhvr.gov.au" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="underline hover:text-foreground transition-colors"
+                >
+                  nhvr.gov.au
+                </a>
+              </p>
+              <p className="text-xs text-muted-foreground text-center">
+                <Link href="/terms" className="underline hover:text-foreground transition-colors">Terms of Service</Link>
+                {' • '}
+                <Link href="/privacy" className="underline hover:text-foreground transition-colors">Privacy Policy</Link>
               </p>
             </div>
 
@@ -100,12 +111,12 @@ export async function Footer() {
               
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 <Link
-                  href="https://nhvr.gov.au"
+                  href="https://www.nhvr.gov.au/safety-accreditation-compliance/fatigue-management"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-foreground transition-colors"
                 >
-                  Visit NHVR.gov.au
+                  NHVR Fatigue Management
                 </Link>
                 <span>•</span>
                 <Link

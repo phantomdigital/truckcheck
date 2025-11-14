@@ -1,10 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Separator } from "@/components/ui/separator"
 import { DistanceMap } from "@/components/distance-map"
-import { Share2, Route, Navigation, BookCheck, BookX, CircleCheck, CircleX, AlertTriangle } from "lucide-react"
+import { Share2, Route, Navigation, BookCheck, BookX, AlertTriangle, AlertCircle, ChevronRight, ExternalLink } from "lucide-react"
 import { ExportModal } from "@/components/logbook/export-modal"
 import { ResponsiveAd } from "@/components/ezoic"
 import type { CalculationResult } from "@/lib/logbook/types"
@@ -16,6 +20,8 @@ interface ResultDisplayProps {
 }
 
 export function ResultDisplay({ result, onShare, isPro = false }: ResultDisplayProps) {
+  const [isCollapsibleOpen, setIsCollapsibleOpen] = useState(false)
+  
   return (
     <Card>
       <CardHeader className="pb-4">
@@ -63,28 +69,43 @@ export function ResultDisplay({ result, onShare, isPro = false }: ResultDisplayP
                   : "bg-green-100 dark:bg-green-900/30"
               }`}>
                 {result.logbookRequired ? (
-                  <BookX className="h-8 w-8 text-red-600 dark:text-red-400" />
+                  <BookCheck className="h-8 w-8 text-red-600 dark:text-red-400" />
                 ) : (
-                  <BookCheck className="h-8 w-8 text-green-600 dark:text-green-400" />
+                  <BookX className="h-8 w-8 text-green-600 dark:text-green-400" />
                 )}
               </div>
 
               {/* Content */}
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-2">
-                  <h3 className={`text-xl font-bold ${
-                    result.logbookRequired
-                      ? "text-red-700 dark:text-red-400"
-                      : "text-green-700 dark:text-green-400"
-                  }`}>
-                    Logbook {result.logbookRequired ? "Required" : "Not Required"}
-                  </h3>
-                  {result.logbookRequired ? (
-                    <CircleX className="h-5 w-5 text-red-600 dark:text-red-400" />
-                  ) : (
-                    <CircleCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  )}
-                </div>
+              <div className="flex-1 space-y-3">
+                <h3 className={`text-xl font-bold ${
+                  result.logbookRequired
+                    ? "text-red-700 dark:text-red-400"
+                    : "text-green-700 dark:text-green-400"
+                }`}>
+                  Logbook {result.logbookRequired ? "Required" : "Not Required"}
+                </h3>
+
+                {/* Badge with Work Diary Entry Status */}
+                {result.logbookRequired ? (
+                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900">
+                    Work Diary Entry: REQUIRED
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-900">
+                    Work Diary Entry: NOT REQUIRED
+                  </Badge>
+                )}
+
+                <p className={`text-sm ${
+                  result.logbookRequired
+                    ? "text-red-700 dark:text-red-300"
+                    : "text-green-700 dark:text-green-300"
+                }`}>
+                  {result.logbookRequired
+                    ? "Complete work diary for this day"
+                    : "Use local area records (run sheets)"}
+                </p>
+
                 <p className={`text-sm leading-relaxed ${
                   result.logbookRequired
                     ? "text-red-700 dark:text-red-300"
@@ -94,6 +115,13 @@ export function ResultDisplay({ result, onShare, isPro = false }: ResultDisplayP
                     ? "You are travelling more than 100km from your base. A work diary (logbook) is required under NHVR regulations."
                     : "You are travelling within 100km of your base. No work diary (logbook) is required under NHVR regulations."}
                 </p>
+
+                {/* 28-Day Carrying Requirement - Always visible */}
+                {!result.logbookRequired && (
+                  <p className="text-sm text-green-800 dark:text-green-200 bg-green-100/50 dark:bg-green-950/30 border border-green-300/50 dark:border-green-900/50 rounded-md p-3">
+                    <strong>Remember:</strong> Even if a work diary entry is not required today, you may still need to CARRY your work diary if you made entries in the last 28 days.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -249,6 +277,118 @@ export function ResultDisplay({ result, onShare, isPro = false }: ResultDisplayP
               </AlertDescription>
             </Alert>
           )}
+
+          {/* Combined Compliance Information and NHVR Requirements */}
+          <Card className="border-amber-200 dark:border-amber-900/40 bg-amber-50/30 dark:bg-amber-950/10">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3 mb-4">
+                <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-base text-amber-900 dark:text-amber-200 mb-2">Important Compliance Information</h3>
+                  <p className="text-sm text-amber-800 dark:text-amber-300 mb-3">
+                    This tool calculates straight-line distance only. You are responsible for:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-amber-800 dark:text-amber-300">
+                    <li>Verifying this result independently</li>
+                    <li>Understanding NHVR work diary requirements</li>
+                    <li>Keeping appropriate records (work diary OR local area records)</li>
+                    <li>Carrying your work diary for 28 days after any entry &gt;100km</li>
+                    <li>Consulting NHVR regulations for your specific situation</li>
+                  </ul>
+                </div>
+              </div>
+
+              <Separator className="my-4" />
+
+              {/* Collapsible Understanding NHVR Requirements Section */}
+              <Collapsible open={isCollapsibleOpen} onOpenChange={setIsCollapsibleOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start gap-2 text-left font-medium h-auto py-2 hover:bg-amber-100/50 dark:hover:bg-amber-950/20"
+                  >
+                    <ChevronRight className={`h-4 w-4 transition-transform ${isCollapsibleOpen ? 'rotate-90' : ''}`} />
+                    <span className="text-amber-900 dark:text-amber-200">Learn More: Understanding NHVR Work Diary Requirements</span>
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-4 pt-4 border-t border-amber-200/50 dark:border-amber-900/20">
+                    <div className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold mb-2 text-base">Local Work (Under 100km)</h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Drivers doing local work don&apos;t need to complete work diary entries, but must still keep local area records like run sheets. Work and rest limits still apply.
+                      </p>
+                      <a 
+                        href="https://www.nhvr.gov.au/safety-accreditation-compliance/fatigue-management/local-area-work-diary-requirements" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-2"
+                      >
+                        Read NHVR local area work requirements
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <div>
+                      <h4 className="font-semibold mb-2 text-base">Work Over 100km</h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        When you travel more than 100km from your base, you must complete work diary entries for that entire day (from midnight).
+                      </p>
+                      <a 
+                        href="https://www.nhvr.gov.au/safety-accreditation-compliance/fatigue-management/record-keeping-requirements" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-2"
+                      >
+                        Read NHVR record keeping requirements
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <div>
+                      <h4 className="font-semibold mb-2 text-base">28-Day Carrying Requirement</h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        If you make ANY work diary entry (for &gt;100km work), you must carry that work diary with you for 28 days after the entry — even if you return to only local work.
+                      </p>
+                      <a 
+                        href="https://www.nhvr.gov.au/safety-accreditation-compliance/fatigue-management/work-diary" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-2"
+                      >
+                        Read NHVR work diary information
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <div>
+                      <h4 className="font-semibold mb-2 text-base">Still Have Questions?</h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        For specific compliance questions, always consult the official NHVR guidance or contact them directly.
+                      </p>
+                      <a 
+                        href="https://www.nhvr.gov.au/safety-accreditation-compliance/fatigue-management/faqs" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-2"
+                      >
+                        View NHVR FAQs
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </CardContent>
+          </Card>
 
         </div>
       </CardContent>

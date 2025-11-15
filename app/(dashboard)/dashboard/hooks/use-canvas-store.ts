@@ -14,7 +14,7 @@ interface CanvasState {
   resetView: () => void;
 }
 
-const defaultState: Omit<CanvasState, keyof { [K in keyof CanvasState as CanvasState[K] extends (...args: any[]) => any ? never : K]: CanvasState[K] }> = {
+const defaultState: Omit<CanvasState, 'setActiveTool' | 'setCanvasZoom' | 'setCanvasPosition' | 'resetView'> = {
   activeTool: 'select',
   canvasZoom: 1.0,
   canvasPosition: { x: 0, y: 0 },

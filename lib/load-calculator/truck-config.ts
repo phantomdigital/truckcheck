@@ -495,9 +495,15 @@ export function getEffectiveLimits(config: TruckConfig): {
 }
 
 /**
- * Isuzu FVR 165-300 MWB - Default truck configuration
+ * Isuzu FVD 165-260 MWB - Default truck configuration
  * All dimensions in millimeters (mm)
- * Based on Isuzu FVR/FVD 165-300 4x2 specifications
+ * Based on Isuzu FVR/FVD 165-300 4x2 DXF engineering drawings
+ * 
+ * Weighbridge data: Actual FVD 165-260 MWB with 5000mm refrigerated body,
+ * Thermo King T1000 unit, and Anteo F3 tailgate
+ * - Front axle: 4140 kg
+ * - Rear axle: 4260 kg
+ * - Total tare: 8400 kg
  * 
  * GML Classification:
  * - 2-axle vehicle (single steer + single rear with dual tyres)
@@ -539,23 +545,24 @@ export const ISUZU_FVR_170_300: TruckConfig = {
   
   // Factory cab chassis weights (kg) - FOR REFERENCE ONLY
   // Users will input their ACTUAL weigh bridge readings instead
-  cabChassisFront: 3235,   // Front axle tare weight (reference)
-  cabChassisRear: 2035,    // Rear axle tare weight (reference)
-  cabChassisTotal: 5270,   // Total tare weight (reference)
+  // Updated with actual FVD 165-260 MWB weighbridge readings (with body, fridge, tailgate)
+  cabChassisFront: 4140,   // Front axle tare weight (actual weighbridge)
+  cabChassisRear: 4260,    // Rear axle tare weight (actual weighbridge)
+  cabChassisTotal: 8400,   // Total tare weight (actual weighbridge)
   
   // Dimensions (mm)
   wb: 4250,                // Wheelbase (front axle to rear axle)
   oal: 7405,               // Overall length
   foh: 1440,               // Front overhang (front to front axle)
   roh: 1715,               // Rear overhang (rear axle to back)
-  ca: 3550,                // Cab to rear axle (Effective Axle - EA)
+  ca: 3624,                // Cab to rear axle (Effective Axle - EA) - from DXF engineering drawings
   
   // Calculated values for canvas
   frontAxlePosition: 1440,              // FOH
   rearAxlePosition: 5690,               // FOH + WB = 1440 + 4250
-  cabEnd: 2140,                         // FOH + WB - CA = 1440 + 4250 - 3550 (where cab ends)
-  bedStart: 2140,                       // Same as cabEnd - this is where the body/tray starts
-  maxBodyLength: 5265,                  // OAL - bedStart = 7405 - 2140 (maximum available body length)
+  cabEnd: 2066,                         // FOH + WB - CA = 1440 + 4250 - 3624 (where cab ends, matches BBC)
+  bedStart: 2066,                       // Same as cabEnd - this is where the body/tray starts (default, user can add gap)
+  maxBodyLength: 5339,                  // OAL - bedStart = 7405 - 2066 (maximum available body length)
   defaultBodyWidth: 2400,               // Standard body width (user can adjust this)
 };
 

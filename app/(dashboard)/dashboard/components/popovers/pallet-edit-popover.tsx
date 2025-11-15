@@ -61,8 +61,6 @@ export function PalletEditPopover({
   onUpdateDimensionsMultiple,
   onUpdateName,
   onUpdateNames,
-  onUpdate,
-  onUpdateMultiple,
   onUpdatePosition,
   onUpdatePositions,
   onDelete,

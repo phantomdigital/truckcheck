@@ -25,7 +25,7 @@ export function OrientationWarning() {
   if (!isMobile || !isPortrait) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-gray-900 flex items-center justify-center p-8">
+    <div className="fixed inset-0 z-9999 bg-gray-900 flex items-center justify-center p-8">
       <div className="text-center">
         <div className="w-24 h-24 mx-auto mb-4 text-gray-400 animate-pulse flex items-center justify-center">
           <svg

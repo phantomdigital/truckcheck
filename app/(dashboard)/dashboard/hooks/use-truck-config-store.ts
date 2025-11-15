@@ -35,13 +35,13 @@ interface TruckConfigState {
 
 const defaultState = {
   weighBridgeReadings: {
-    frontAxle: ISUZU_FVR_170_300.cabChassisFront,
-    rearAxle: ISUZU_FVR_170_300.cabChassisRear,
+    frontAxle: ISUZU_FVR_170_300.cabChassisFront, // 4140 kg (actual weighbridge)
+    rearAxle: ISUZU_FVR_170_300.cabChassisRear,   // 4260 kg (actual weighbridge)
   },
   fromBackOfCab: 200, // Default 200mm
   bodyDimensions: {
-    length: 5765, // Default to max available
-    width: 2500, // Default external width (2500mm)
+    length: 5000, // Default 5000mm body length
+    width: 2500,  // Default external width (2500mm)
   },
   wallThickness: {
     front: 50, // mm

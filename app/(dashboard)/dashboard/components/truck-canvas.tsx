@@ -984,12 +984,21 @@ export function TruckCanvas({
     },
   ];
 
+  // Calculate AC (Axle to Cab): front axle to back of cab
+  const ac = truckConfig.wb - truckConfig.ca;
+
   const bottomDimensionsData = [
     {
       id: 'foh',
       startX: horizontalOffset,
       endX: frontAxlePx,
       label: `FOH ${truckConfig.foh}mm`,
+    },
+    {
+      id: 'ac',
+      startX: frontAxlePx,
+      endX: cabEndPx,
+      label: `AC ${ac}mm`,
     },
     {
       id: 'roh',
@@ -1191,7 +1200,7 @@ export function TruckCanvas({
           return drawDimensionLine(startX, endX, topDimensionPositions.bodyLength, label, true, 15, badgeWidth > spanWidth, onClick);
         })()}
 
-        {/* Level 3: Detail dimensions - FOH, ROH, CA, Cab-Body spacing */}
+        {/* Level 3: Detail dimensions - FOH, AC, ROH, CA, Cab-Body spacing */}
         {/* FOH - Front Overhang */}
         {(() => {
           const startX = horizontalOffset;
@@ -1200,6 +1209,15 @@ export function TruckCanvas({
           const spanWidth = Math.abs(endX - startX);
           const badgeWidth = getDimensionBadgeWidth(label);
           return drawDimensionLine(startX, endX, bottomDimensionPositions.foh, label, true, 15, badgeWidth > spanWidth);
+        })()}
+        {/* AC - Axle to Cab */}
+        {(() => {
+          const startX = frontAxlePx;
+          const endX = cabEndPx;
+          const label = `AC ${ac}mm`;
+          const spanWidth = Math.abs(endX - startX);
+          const badgeWidth = getDimensionBadgeWidth(label);
+          return drawDimensionLine(startX, endX, bottomDimensionPositions.ac, label, true, 15, badgeWidth > spanWidth);
         })()}
         {/* ROH - Rear Overhang - offset slightly to avoid overlap */}
         {(() => {

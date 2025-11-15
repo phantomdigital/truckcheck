@@ -89,77 +89,120 @@ export function calculateLoadCOG(pallets: Pallet[]): { x: number; y: number } {
 }
 
 /**
- * Calculate airbag suspension compression and its effect on weight distribution
+ * Calculate suspension compression for a given axle load and suspension type
  * 
- * Airbag suspension compresses under load, causing:
- * 1. Rear suspension compression (proportional to rear axle load)
- * 2. Pitch angle change (body tilts forward)
- * 3. COG shift (due to pitch and compression)
- * 4. Weight redistribution (more weight to rear axle)
+ * Returns compression in metres
  * 
- * Uses non-linear compression model: compression rate increases slightly with load
- * (airbags become stiffer as they compress)
- * 
- * @param rearAxleLoad - Load weight on rear axle (kg)
- * @param wheelbase - Wheelbase distance (m)
- * @param loadCOGHeight - Estimated center of gravity height (m) - typical 1.0-1.5m for loaded trucks
- * @returns Weight shift ratio (0.0 to ~0.08, typically 0.02-0.05)
+ * @param axleLoad - Total axle load including tare (kg)
+ * @param suspensionType - Type of suspension (TAPER_LEAF, STEEL, or AIRBAG)
+ * @returns Compression in metres
  */
-function calculateAirbagSuspensionEffect(
-  rearAxleLoad: number,
-  wheelbase: number,
-  loadCOGHeight: number = 1.2 // Typical COG height for loaded truck (metres)
+function calculateSuspensionCompression(
+  axleLoad: number,
+  suspensionType: SuspensionType
 ): number {
-  // Airbag suspension characteristics (based on typical commercial truck systems)
-  // Base compression rate: ~0.8mm per 100kg of load
-  // Non-linear: compression rate increases slightly with load (airbags stiffen)
-  const BASE_COMPRESSION_RATE_PER_100KG = 0.0008 // metres per 100kg (0.8mm/100kg)
+  switch (suspensionType) {
+    case SuspensionType.TAPER_LEAF:
+      // Taper-leaf springs (typically front axle - FVD: Meritor FG941)
+      // Stiffer than multi-leaf: ~0.05mm per 100kg
+      // Max compression: ~20mm (0.02m)
+      const TAPER_LEAF_RATE = 0.0005 // 0.5mm per 100kg
+      const taperCompression = (axleLoad / 100) * TAPER_LEAF_RATE
+      return Math.min(taperCompression, 0.02) // Max 20mm
+      
+    case SuspensionType.STEEL:
+      // Multi-leaf steel springs (typically rear axle)
+      // Medium stiffness: ~0.1mm per 100kg
+      // Max compression: ~10mm (0.01m)
+      const STEEL_RATE = 0.0001 // 0.1mm per 100kg
+      const steelCompression = (axleLoad / 100) * STEEL_RATE
+      return Math.min(steelCompression, 0.01) // Max 10mm
+      
+    case SuspensionType.AIRBAG:
+      // Airbag suspension (FVD rear: Hendrickson HAS230)
+      // Softest, non-linear: ~0.8mm per 100kg base rate
+      // Non-linear: compression rate increases by 10% per 2000kg
+      // (airbags become stiffer as they compress)
+      // Max compression: ~150mm (0.15m)
+      const BASE_AIRBAG_RATE = 0.0008 // 0.8mm per 100kg
+      const nonLinearFactor = 1 + (axleLoad / 2000) * 0.1
+      const airbagRate = BASE_AIRBAG_RATE * nonLinearFactor
+      const airbagCompression = (axleLoad / 100) * airbagRate
+      return Math.min(airbagCompression, 0.15) // Max 150mm
+      
+    default:
+      return 0
+  }
+}
+
+/**
+ * Calculate mixed suspension effect on weight distribution (FVD-specific)
+ * 
+ * For mixed suspension setups (e.g., taper-leaf front + airbag rear):
+ * 1. Front suspension compresses under front axle load
+ * 2. Rear suspension compresses under rear axle load  
+ * 3. Differential compression creates pitch angle
+ * 4. Pitch angle shifts COG horizontally, redistributing weight
+ * 
+ * This models the REAL FVD setup:
+ * - Front: Meritor FG941 taper-leaf (6,600kg capacity, stiffer)
+ * - Rear: Hendrickson HAS230 airbag (10,400kg capacity, softer)
+ * 
+ * @param frontAxleLoad - Total front axle load including tare (kg)
+ * @param rearAxleLoad - Total rear axle load including tare (kg)
+ * @param frontSuspension - Front suspension type
+ * @param rearSuspension - Rear suspension type
+ * @param wheelbase - Wheelbase distance (m)
+ * @param loadCOGHeight - Estimated center of gravity height (m)
+ * @returns Weight shift amount from front to rear in kg
+ */
+function calculateMixedSuspensionEffect(
+  frontAxleLoad: number,
+  rearAxleLoad: number,
+  frontSuspension: SuspensionType,
+  rearSuspension: SuspensionType,
+  wheelbase: number,
+  loadCOGHeight: number = 1.2
+): number {
+  // Calculate compression at each axle
+  const frontCompression = calculateSuspensionCompression(frontAxleLoad, frontSuspension)
+  const rearCompression = calculateSuspensionCompression(rearAxleLoad, rearSuspension)
   
-  // Non-linear factor: compression rate increases by 10% per 2000kg
-  // This models the fact that airbags become stiffer as they compress
-  const nonLinearFactor = 1 + (rearAxleLoad / 2000) * 0.1
-  const compressionRate = BASE_COMPRESSION_RATE_PER_100KG * nonLinearFactor
+  // Calculate differential compression
+  // Positive = rear compresses more than front (typical with rear load)
+  // Negative = front compresses more than rear (rare, front-heavy load)
+  const differentialCompression = rearCompression - frontCompression
   
-  // Calculate suspension compression at rear axle
-  const compression = (rearAxleLoad / 100) * compressionRate // metres
+  // Calculate pitch angle from differential compression
+  // tan(pitch) = differential_compression / wheelbase
+  const pitchAngle = Math.atan(differentialCompression / wheelbase)
   
-  // Limit compression to realistic maximum (typically 50-150mm)
-  const MAX_COMPRESSION = 0.15 // metres (150mm)
-  const actualCompression = Math.min(compression, MAX_COMPRESSION)
-  
-  // Calculate pitch angle (radians) from compression
-  // tan(pitch) = compression / wheelbase
-  const pitchAngle = Math.atan(actualCompression / wheelbase)
-  
-  // Calculate COG shift due to pitch
-  // As truck pitches forward, COG moves rearward horizontally
-  // Horizontal shift = COG_height × sin(pitch)
+  // Calculate COG horizontal shift due to pitch
+  // When rear compresses more: body tilts forward, COG moves rearward
+  // When front compresses more: body tilts back, COG moves forward
   const cogHorizontalShift = loadCOGHeight * Math.sin(pitchAngle)
   
-  // Calculate weight shift from geometry change
-  // The horizontal COG shift creates additional moment about rear axle
-  // Weight shift = (COG_shift × total_load) / wheelbase
-  // But we need to account for the fact that compression itself transfers weight
-  // Using moment analysis: additional rear load ≈ (cogHorizontalShift × totalLoad) / wheelbase
+  // Calculate weight redistribution from COG shift
+  // Using moment analysis: shift creates moment that redistributes weight
+  // Positive shift (rearward) = more weight to rear axle
+  // Weight shift proportional to (cogShift / wheelbase) ratio
+  const compressionRatio = Math.abs(differentialCompression) / wheelbase
+  const cogShiftRatio = Math.abs(cogHorizontalShift) / wheelbase
   
-  // More accurate: compression directly transfers weight proportional to compression/wheelbase ratio
-  // Plus the COG shift effect
-  const compressionRatio = actualCompression / wheelbase
-  const cogShiftRatio = cogHorizontalShift / wheelbase
-  
-  // Combined effect: compression transfers weight, COG shift adds more
-  // The weight shift ratio represents what fraction of total load shifts from front to rear
-  // Typical effect: 2-8% depending on load and position
-  // 
-  // Physics: 
-  // - Compression creates a moment that transfers weight to rear
-  // - COG shift (from pitch) creates additional moment
-  // - Combined effect is proportional to compression/wheelbase ratio
+  // Combined effect: differential compression + COG shift
+  // Physics: weight redistributes proportional to the pitch angle created
   const weightShiftRatio = compressionRatio * 0.7 + cogShiftRatio * 0.3
   
-  // Return the weight shift ratio (0.0 to ~0.08, typically 0.02-0.05)
-  // This will be multiplied by total load weight to get actual shift amount
-  return weightShiftRatio
+  // Apply sign: positive shift = weight from front to rear
+  // (differentialCompression > 0 means rear compresses more)
+  const weightShiftSign = differentialCompression >= 0 ? 1 : -1
+  
+  // For FVD typical loading (rear airbag compresses ~100mm, front taper-leaf ~5mm):
+  // - Differential = ~95mm over 4.66m wheelbase
+  // - Pitch angle = ~1.17 degrees
+  // - Weight shift = ~2-5% of total load to rear
+  
+  return weightShiftRatio * weightShiftSign * (frontAxleLoad + rearAxleLoad) * 0.5 // Apply to total weight
 }
 
 /**
@@ -281,64 +324,49 @@ export function calculateWeightDistribution(
     const cogHeightFactor = Math.max(0.3, Math.min(0.7, Math.abs(cogToRearAxle) / truck.wheelbase)) // 0.3-0.7 based on COG position
     const estimatedCOGHeight = 1.0 + (cogHeightFactor * 0.5) // 1.0m to 1.5m
     
-    if (truck.suspension_type === SuspensionType.AIRBAG) {
-      // Airbag suspension: significant compression (50-150mm)
-      // Use iterative solver to converge on accurate weight distribution
-      // This accounts for the fact that compression changes load distribution,
-      // which changes compression, etc. (converges in 2-3 iterations)
+    // Determine effective suspension types for front and rear
+    // If specific suspension types are provided, use them; otherwise fall back to legacy suspension_type
+    const frontSuspension = truck.front_suspension_type ?? truck.suspension_type
+    const rearSuspension = truck.rear_suspension_type ?? truck.suspension_type
+    
+    // Use iterative solver for accurate weight distribution with suspension effects
+    // This accounts for the fact that compression changes load distribution,
+    // which changes compression, etc. (converges in 2-4 iterations)
+    const MAX_ITERATIONS = 5
+    const CONVERGENCE_THRESHOLD = 0.1 // kg - stop when change is less than 0.1kg
+    
+    let currentFrontLoad = loadOnFrontAxle
+    
+    for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+      const currentRearLoad = loadWeight - currentFrontLoad
+      const totalFrontAxleLoad = truck.front_tare_weight + currentFrontLoad
+      const totalRearAxleLoad = truck.rear_tare_weight + currentRearLoad
       
-      const MAX_ITERATIONS = 5
-      const CONVERGENCE_THRESHOLD = 0.1 // kg - stop when change is less than 0.1kg
-      
-      let currentFrontLoad = loadOnFrontAxle
-      
-      for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
-        const currentRearLoad = loadWeight - currentFrontLoad
-        const totalRearAxleLoad = truck.rear_tare_weight + currentRearLoad
-        
-        // Calculate weight shift ratio from suspension compression
-        const weightShiftRatio = calculateAirbagSuspensionEffect(
-          totalRearAxleLoad,
-          truck.wheelbase,
-          estimatedCOGHeight
-        )
-        
-        // Suspension compression shifts weight from front to rear
-        const loadShift = loadWeight * weightShiftRatio
-        const newFrontLoad = currentFrontLoad - loadShift
-        
-        // Check for convergence
-        const frontChange = Math.abs(newFrontLoad - currentFrontLoad)
-        if (frontChange < CONVERGENCE_THRESHOLD) {
-          currentFrontLoad = newFrontLoad
-          break
-        }
-        
-        currentFrontLoad = newFrontLoad
-      }
-      
-      loadOnFrontAxle = currentFrontLoad
-      loadOnRearAxle = loadWeight - loadOnFrontAxle
-      
-    } else if (truck.suspension_type === SuspensionType.STEEL) {
-      // Steel suspension: minimal compression (~5-10mm), but still measurable
-      // Compression rate: ~0.1mm per 100kg (much stiffer than airbags)
-      const STEEL_COMPRESSION_RATE_PER_100KG = 0.0001 // metres per 100kg (0.1mm/100kg)
-      const totalRearAxleLoad = truck.rear_tare_weight + loadOnRearAxle
-      const steelCompression = Math.min(
-        (totalRearAxleLoad / 100) * STEEL_COMPRESSION_RATE_PER_100KG,
-        0.01 // Max 10mm compression for steel
+      // Calculate weight shift from mixed suspension effect
+      const weightShift = calculateMixedSuspensionEffect(
+        totalFrontAxleLoad,
+        totalRearAxleLoad,
+        frontSuspension,
+        rearSuspension,
+        truck.wheelbase,
+        estimatedCOGHeight
       )
       
-      // Small correction: ~0.5-1% weight shift for steel suspension
-      const steelCompressionRatio = steelCompression / truck.wheelbase
-      const steelCogShift = estimatedCOGHeight * Math.sin(Math.atan(steelCompression / truck.wheelbase))
-      const steelShiftRatio = (steelCompressionRatio * 0.7 + (steelCogShift / truck.wheelbase) * 0.3) * 0.2 // 20% of airbag effect
+      // Weight shift is from front to rear (positive = more weight to rear)
+      const newFrontLoad = currentFrontLoad - weightShift
       
-      const steelLoadShift = loadWeight * steelShiftRatio
-      loadOnFrontAxle = loadOnFrontAxle - steelLoadShift
-      loadOnRearAxle = loadWeight - loadOnFrontAxle
+      // Check for convergence
+      const frontChange = Math.abs(newFrontLoad - currentFrontLoad)
+      if (frontChange < CONVERGENCE_THRESHOLD) {
+        currentFrontLoad = newFrontLoad
+        break
+      }
+      
+      currentFrontLoad = newFrontLoad
     }
+    
+    loadOnFrontAxle = currentFrontLoad
+    loadOnRearAxle = loadWeight - loadOnFrontAxle
   }
 
   // Add to tare weights and clamp to physical limits (no negative axle loads)

@@ -18,6 +18,7 @@ export enum BodyType {
 export enum SuspensionType {
   STEEL = 'STEEL', // Leaf spring or coil spring suspension
   AIRBAG = 'AIRBAG', // Air suspension (rear airbags)
+  TAPER_LEAF = 'TAPER_LEAF', // Taper-leaf springs (typically front axle - stiffer than multi-leaf)
 }
 
 // Color mapping for body types
@@ -56,7 +57,10 @@ export interface TruckProfile {
   rear_overhang?: number // ROH: Distance from rear axle to back of truck (metres)
   
   // Suspension type affects weight distribution calculations
-  suspension_type: SuspensionType // STEEL or AIRBAG
+  // For mixed suspension (e.g., steel front + airbag rear), specify both
+  suspension_type: SuspensionType // STEEL, AIRBAG, or TAPER_LEAF (legacy - applies to both axles)
+  front_suspension_type?: SuspensionType // Front axle suspension (overrides suspension_type if specified)
+  rear_suspension_type?: SuspensionType // Rear axle suspension (overrides suspension_type if specified)
   
   // Wall thickness (metres) - affects usable loading area
   // Defaults: 0.03m (30mm) for pantech/refrigerated, 0 for tray/curtainsider
@@ -145,7 +149,9 @@ export interface TruckProfileFormData {
   front_overhang: number
   cab_to_axle?: number // CA: From spec sheet - used to calculate body start position
   rear_overhang?: number // ROH: From spec sheet
-  suspension_type: SuspensionType // STEEL or AIRBAG
+  suspension_type: SuspensionType // STEEL, AIRBAG, or TAPER_LEAF (legacy - applies to both axles)
+  front_suspension_type?: SuspensionType // Front axle suspension (overrides suspension_type if specified)
+  rear_suspension_type?: SuspensionType // Rear axle suspension (overrides suspension_type if specified)
   wall_thickness_front?: number // Front wall thickness (metres), default 0.03
   wall_thickness_rear?: number // Rear wall thickness (metres), default 0.03
   wall_thickness_sides?: number // Side wall thickness (metres), default 0.03

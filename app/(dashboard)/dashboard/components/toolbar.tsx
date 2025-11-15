@@ -16,7 +16,7 @@ interface ToolbarProps {
 }
 
 const TOOLS: Array<{
-  id: Tool;
+  id: Tool | 'reset';
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   shortcut?: string;
@@ -71,7 +71,7 @@ export function Toolbar({
       <div className="flex flex-col gap-1">
         {TOOLS.map((tool) => {
           const Icon = tool.icon;
-          const isActive = activeTool === tool.id;
+          const isActive = tool.id !== 'reset' && activeTool === tool.id;
           
           return (
             <Button

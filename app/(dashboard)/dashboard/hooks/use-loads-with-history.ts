@@ -14,6 +14,10 @@ export function useLoadsWithHistory() {
   const updateLoadPosition = useLoadsStore((state) => state.updateLoadPosition);
   const updateLoadPositions = useLoadsStore((state) => state.updateLoadPositions);
   const updateLoadWeight = useLoadsStore((state) => state.updateLoadWeight);
+  const updateLoadDimensions = useLoadsStore((state) => state.updateLoadDimensions);
+  const updateLoadName = useLoadsStore((state) => state.updateLoadName);
+  const updateLoad = useLoadsStore((state) => state.updateLoad);
+  const updateLoads = useLoadsStore((state) => state.updateLoads);
   const deleteLoad = useLoadsStore((state) => state.deleteLoad);
   const deleteLoads = useLoadsStore((state) => state.deleteLoads);
   const duplicateLoad = useLoadsStore((state) => state.duplicateLoad);
@@ -93,6 +97,10 @@ export function useLoadsWithHistory() {
     updateLoadPosition,
     updateLoadPositions,
     updateLoadWeight,
+    updateLoadDimensions,
+    updateLoadName,
+    updateLoad,
+    updateLoads,
     deleteLoad,
     deleteLoads,
     duplicateLoad,

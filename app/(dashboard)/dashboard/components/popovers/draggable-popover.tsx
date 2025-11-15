@@ -18,6 +18,9 @@ interface DraggablePopoverProps {
   onCollapsedChange?: (collapsed: boolean) => void;
   children: React.ReactNode;
   className?: string;
+  editableTitle?: boolean;
+  onTitleChange?: (newTitle: string) => void;
+  titlePlaceholder?: string;
 }
 
 export function DraggablePopover({
@@ -30,7 +33,59 @@ export function DraggablePopover({
   onCollapsedChange,
   children,
   className,
+  editableTitle = false,
+  onTitleChange,
+  titlePlaceholder,
 }: DraggablePopoverProps) {
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(title);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Always sync editedTitle with title prop when not editing
+    // This ensures the title updates after saving
+    if (!isEditingTitle) {
+      setEditedTitle(title);
+    }
+  }, [title, isEditingTitle]);
+
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  const handleTitleBlur = () => {
+    const trimmedValue = editedTitle.trim();
+    if (onTitleChange) {
+      // Always call onTitleChange to ensure changes are saved
+      // The parent will update the store, which will update the title prop
+      onTitleChange(trimmedValue);
+    }
+    setIsEditingTitle(false);
+    // Don't reset editedTitle here - let useEffect sync it when title prop updates
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const trimmedValue = editedTitle.trim();
+      // Call onTitleChange directly to ensure it's called
+      if (onTitleChange) {
+        onTitleChange(trimmedValue);
+      }
+      setIsEditingTitle(false);
+      // Blur the input
+      if (titleInputRef.current) {
+        titleInputRef.current.blur();
+      }
+      // Don't reset editedTitle here - let useEffect sync it when title prop updates
+    } else if (e.key === 'Escape') {
+      setEditedTitle(title);
+      setIsEditingTitle(false);
+    }
+  };
   const [currentPosition, setCurrentPosition] = useState(position);
   const [isDraggingLocal, setIsDraggingLocal] = useState(false);
   const lastTransformRef = useRef<{ x: number; y: number } | null>(null);
@@ -128,11 +183,41 @@ export function DraggablePopover({
       {/* Title bar with drag handle */}
       <div className="flex items-center justify-between px-4 py-2 bg-gray-700/50 rounded-t-lg border-b border-gray-600">
         <div
-          {...listeners}
-          {...attributes}
-          className="flex-1 cursor-move select-none"
+          {...(!isEditingTitle ? { ...listeners, ...attributes } : {})}
+          className={cn(
+            "flex-1",
+            !isEditingTitle && "cursor-move select-none"
+          )}
         >
-          <h3 className="text-sm font-semibold text-gray-200">{title}</h3>
+          {editableTitle && isEditingTitle ? (
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={editedTitle}
+              onChange={(e) => setEditedTitle(e.target.value)}
+              onBlur={handleTitleBlur}
+              onKeyDown={handleTitleKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="w-full bg-transparent border-none outline-none text-sm font-semibold text-gray-200 px-0 py-0"
+              placeholder={titlePlaceholder}
+            />
+          ) : (
+            <h3 
+              className={cn(
+                "text-sm font-semibold text-gray-200",
+                editableTitle && "cursor-text"
+              )}
+              onClick={(e) => {
+                if (editableTitle) {
+                  e.stopPropagation();
+                  setIsEditingTitle(true);
+                }
+              }}
+            >
+              {title}
+            </h3>
+          )}
         </div>
         <div className="flex items-center gap-1">
           {onCollapsedChange && (

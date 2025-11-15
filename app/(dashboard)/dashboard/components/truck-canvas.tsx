@@ -19,6 +19,7 @@ interface Pallet {
   length: number; // mm
   width: number; // mm
   weight: number; // kg
+  name?: string; // Optional pallet name/identifier
 }
 
 import type { Tool } from './dashboard-menu';
@@ -126,14 +127,18 @@ export function TruckCanvas({
   
   // Track which mouse button is currently pressed
   const [mouseButtonPressed, setMouseButtonPressed] = useState<number | null>(null);
+  const mouseButtonPressedRef = useRef<number | null>(null);
   
   // Track modifier keys (Shift for horizontal, Alt for vertical)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Shift') {
         shiftKeyPressedRef.current = true;
+        // Don't prevent default for Shift - it's used for multi-select too
       } else if (e.key === 'Alt') {
         altKeyPressedRef.current = true;
+        // Prevent Alt from triggering browser menu bar
+        e.preventDefault();
       }
     };
     
@@ -142,6 +147,7 @@ export function TruckCanvas({
         shiftKeyPressedRef.current = false;
       } else if (e.key === 'Alt') {
         altKeyPressedRef.current = false;
+        e.preventDefault();
       }
     };
     
@@ -285,6 +291,7 @@ export function TruckCanvas({
   }, [canvasSize.width, truckConfig.oal]);
 
   // Convert mm to pixels using the padded scale
+  // IMPORTANT: Use the same scale calculation as mmToPx helper for consistency
   const mmToPxLocal = useMemo(() => {
     const paddedWidth = canvasSize.width * PADDING_RATIO;
     return (mm: number) => mmToPx(mm, paddedWidth, truckConfig.oal);
@@ -394,8 +401,9 @@ export function TruckCanvas({
 
   // Handle pan start (pan tool active OR middle mouse button) and selection area start
   const handlePanStart = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    // Track which mouse button was pressed
+    // Track which mouse button was pressed (update both state and ref immediately)
     setMouseButtonPressed(e.evt.button);
+    mouseButtonPressedRef.current = e.evt.button;
 
     const stage = e.target.getStage();
     if (!stage) return;
@@ -407,8 +415,17 @@ export function TruckCanvas({
     const isLeftButton = e.evt.button === 0;
     const clickedOnStage = e.target === stage;
     
+    // Middle mouse button always pans, even over pallets
+    if (isMiddleButton) {
+      setIsPanning(true);
+      setLastPanPoint(pointer);
+      e.evt.preventDefault();
+      e.evt.stopPropagation();
+      return;
+    }
+    
     // Check if we clicked on a pallet - if target is not stage and has a draggable parent
-    // This check MUST happen first to prevent interfering with pallet dragging
+    // This check is only for left-click to prevent interfering with pallet dragging
     let clickedOnPallet = false;
     if (!clickedOnStage) {
       let node: Konva.Node | null = e.target;
@@ -424,8 +441,8 @@ export function TruckCanvas({
       }
     }
 
-    // CRITICAL: If clicking on a pallet, let Konva's drag system handle it - don't interfere at all
-    if (clickedOnPallet) {
+    // CRITICAL: If left-clicking on a pallet, let Konva's drag system handle it - don't interfere at all
+    if (clickedOnPallet && isLeftButton) {
       return; // Let Konva handle pallet dragging completely
     }
 
@@ -1230,66 +1247,94 @@ export function TruckCanvas({
           const usableEndY = usableTopY + usableWidthPx;
 
           const handleDragStart = (e: Konva.KonvaEventObject<DragEvent>) => {
+            // Use the calculated positions (palletX, palletY) instead of reading from Konva node
+            // This ensures consistency and prevents tiny shifts due to floating-point differences
+            // Store initial positions for constraints (needed even when preventing drag)
+            initialDragYRef.current[pallet.id] = palletY;
+            initialDragXRef.current[pallet.id] = palletX;
+            
             // Prevent dragging with middle mouse button - should only pan
-            if (mouseButtonPressed === 1) {
+            // Check both the tracked state and the event's button property
+            if (mouseButtonPressed === 1 || e.evt.button === 1) {
+              // Don't stop propagation - let the event bubble to stage for panning
+              // Just prevent the drag from happening
               e.evt.preventDefault();
-              e.evt.stopPropagation();
+              // Force the node to stay in place
+              e.target.setPosition({ x: palletX, y: palletY });
+              // Return false to prevent drag, but don't stop propagation so stage can pan
               return false;
             }
-
-            // Store initial Y position for horizontal constraint (Shift key)
-            initialDragYRef.current[pallet.id] = palletY;
-            // Store initial X position for vertical constraint (Alt key)
-            initialDragXRef.current[pallet.id] = palletX;
 
             // If this pallet is part of a multi-selection, store initial positions of all selected pallets
             if (selectedPalletIds.length > 1 && selectedPalletIds.includes(pallet.id)) {
               initialPositionsRef.current = {};
+              // Store the dragged pallet's initial position first (use current scope variables)
+              initialPositionsRef.current[pallet.id] = {
+                x: pallet.x,
+                y: pallet.y
+              };
+              
+              // Then store initial positions for all OTHER selected pallets
               selectedPalletIds.forEach(id => {
-                const selectedPallet = pallets.find(p => p.id === id);
-                if (selectedPallet) {
-                  initialPositionsRef.current[id] = {
-                    x: selectedPallet.x,
-                    y: selectedPallet.y
-                  };
-                  // Store initial Y for each selected pallet (horizontal constraint)
-                  const selectedPalletY = bodyTopY + mmToPxLocal(selectedPallet.y);
-                  initialDragYRef.current[id] = selectedPalletY;
-                  // Store initial X for each selected pallet (vertical constraint)
-                  const selectedPalletX = mmToPxLocal(selectedPallet.x) + horizontalOffset;
-                  initialDragXRef.current[id] = selectedPalletX;
+                if (id !== pallet.id) {
+                  const selectedPallet = pallets.find(p => p.id === id);
+                  if (selectedPallet) {
+                    initialPositionsRef.current[id] = {
+                      x: selectedPallet.x,
+                      y: selectedPallet.y
+                    };
+                    // Store initial Y for each selected pallet (horizontal constraint)
+                    const selectedPalletY = bodyTopY + mmToPxLocal(selectedPallet.y);
+                    initialDragYRef.current[id] = selectedPalletY;
+                    // Store initial X for each selected pallet (vertical constraint)
+                    const selectedPalletX = mmToPxLocal(selectedPallet.x) + horizontalOffset;
+                    initialDragXRef.current[id] = selectedPalletX;
+                  }
                 }
               });
             }
           };
 
           const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+            // Prevent drag move if middle mouse button is pressed OR we're panning (should pan instead)
+            if (mouseButtonPressed === 1 || isPanning) {
+              // Reset position to prevent any movement
+              const initialX = initialDragXRef.current[pallet.id] ?? palletX;
+              const initialY = initialDragYRef.current[pallet.id] ?? palletY;
+              e.target.setPosition({ x: initialX, y: initialY });
+              return;
+            }
+            
             // Konva's drag system handles the Stage transform automatically
             // e.target.x() and e.target.y() are in world coordinates (before Stage transform)
             const newWorldX = e.target.x();
             const newWorldY = e.target.y();
 
-            // Convert to mm
+            // Convert to mm - ensure we're using consistent coordinate system
             const newXMm = pxToMmLocal(newWorldX - horizontalOffset);
             const newYMm = pxToMmLocal(newWorldY - bodyTopY);
 
             // If multiple pallets are selected and this is one of them, move all selected pallets
             if (selectedPalletIds.length > 1 && selectedPalletIds.includes(pallet.id) && onUpdatePalletPositions) {
               const initialPos = initialPositionsRef.current[pallet.id];
-              if (initialPos) {
-                // If Shift is held, only move horizontally (deltaY = 0)
-                // If Alt is held, only move vertically (deltaX = 0)
-                const deltaX = altKeyPressedRef.current ? 0 : (newXMm - initialPos.x);
-                const deltaY = shiftKeyPressedRef.current ? 0 : (newYMm - initialPos.y);
+              const initialPixelX = initialDragXRef.current[pallet.id];
+              const initialPixelY = initialDragYRef.current[pallet.id];
+              
+              if (initialPos && initialPixelX !== undefined && initialPixelY !== undefined) {
+                // Calculate deltas in PIXELS first (more accurate), then convert to mm
+                const deltaXPx = newWorldX - initialPixelX;
+                const deltaYPx = newWorldY - initialPixelY;
+                const deltaXMm = pxToMmLocal(deltaXPx);
+                const deltaYMm = pxToMmLocal(deltaYPx);
 
-                // Calculate new positions for all selected pallets
+                // Calculate new positions for all selected pallets, preserving their relative spacing
                 const updates = selectedPalletIds.map(id => {
                   const initialPalletPos = initialPositionsRef.current[id];
                   if (initialPalletPos) {
                     return {
                       id,
-                      x: initialPalletPos.x + deltaX,
-                      y: initialPalletPos.y + deltaY,
+                      x: initialPalletPos.x + deltaXMm,
+                      y: initialPalletPos.y + deltaYMm,
                     };
                   }
                   return null;
@@ -1320,6 +1365,11 @@ export function TruckCanvas({
           };
 
           const handleClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
+            // Ignore middle-clicks (button 1) - those should pan, not select
+            if (e.evt.button === 1) {
+              return;
+            }
+            
             e.cancelBubble = true;
             
             // Determine selection mode based on modifier keys
@@ -1336,6 +1386,19 @@ export function TruckCanvas({
           const handleDoubleClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
             e.cancelBubble = true;
             onDoubleClickPallet?.(pallet.id);
+          };
+
+          const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+            // For middle-clicks, update state immediately to prevent drag from starting
+            if (e.evt.button === 1) {
+              setMouseButtonPressed(1);
+              mouseButtonPressedRef.current = 1;
+              // Don't cancel bubble - let event bubble to stage for panning
+              return; // Let event bubble to stage
+            }
+            // For other buttons, update state
+            setMouseButtonPressed(e.evt.button);
+            mouseButtonPressedRef.current = e.evt.button;
           };
 
           const handleContextMenu = (e: Konva.KonvaEventObject<PointerEvent>) => {
@@ -1360,7 +1423,9 @@ export function TruckCanvas({
               key={pallet.id}
               x={palletX}
               y={palletY}
-              draggable={!!onUpdatePalletPosition && activeTool === 'select'}
+              draggable={!!onUpdatePalletPosition && activeTool === 'select' && !isPanning}
+              dragDistance={mouseButtonPressedRef.current === 1 || isPanning ? 10000 : 5}
+              onMouseDown={handleMouseDown}
               onDragStart={handleDragStart}
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
@@ -1370,25 +1435,42 @@ export function TruckCanvas({
               onDblTap={handleDoubleClick}
               onContextMenu={handleContextMenu}
               dragBoundFunc={(pos) => {
-                // pos is in world coordinates (before Stage transform)
-                // Apply grid snapping first (10mm grid for better precision)
+                // If middle mouse button is pressed OR we're panning, prevent any pallet movement (should pan instead)
+                if (mouseButtonPressed === 1 || isPanning) {
+                  // Return the initial position to lock the pallet in place
+                  // This prevents the pallet from interfering with panning
+                  const initialX = initialDragXRef.current[pallet.id] ?? palletX;
+                  const initialY = initialDragYRef.current[pallet.id] ?? palletY;
+                  return { x: initialX, y: initialY };
+                }
+                
+                // Check if Shift or Alt keys are held for constrained movement
+                const isShiftHeld = shiftKeyPressedRef.current && initialDragYRef.current[pallet.id] !== undefined;
+                const isAltHeld = altKeyPressedRef.current && initialDragXRef.current[pallet.id] !== undefined;
+                
+                // Apply grid snapping (10mm grid for better precision)
+                // BUT: only snap the axis that's actually moving (not the locked axis)
                 const gridSizePx = mmToPxLocal(10);
-                let snappedX = Math.round(pos.x / gridSizePx) * gridSizePx;
-                let snappedY = Math.round(pos.y / gridSizePx) * gridSizePx;
+                let snappedX = isAltHeld ? pos.x : Math.round(pos.x / gridSizePx) * gridSizePx;
+                let snappedY = isShiftHeld ? pos.y : Math.round(pos.y / gridSizePx) * gridSizePx;
                 
-                // If Shift is held, constrain to horizontal movement only (lock Y)
-                if (shiftKeyPressedRef.current && initialDragYRef.current[pallet.id] !== undefined) {
-                  snappedY = initialDragYRef.current[pallet.id];
+                // Apply boundary constraints only for axes that aren't locked by Shift/Alt
+                // If Shift is held (horizontal movement only), don't constrain X
+                // If Alt is held (vertical movement only), don't constrain Y
+                let constrainedX = isShiftHeld ? snappedX : Math.max(usableStartX, Math.min(snappedX, usableEndX - palletLengthPx));
+                let constrainedY = isAltHeld ? snappedY : Math.max(usableStartY, Math.min(snappedY, usableEndY - palletWidthPx));
+                
+                // Apply shift/alt constraints (lock the perpendicular axis to exact initial position)
+                // If Shift is held, constrain to horizontal movement only (lock Y to initial position)
+                if (isShiftHeld) {
+                  constrainedY = initialDragYRef.current[pallet.id];
                 }
                 
-                // If Alt is held, constrain to vertical movement only (lock X)
-                if (altKeyPressedRef.current && initialDragXRef.current[pallet.id] !== undefined) {
-                  snappedX = initialDragXRef.current[pallet.id];
+                // If Alt is held, constrain to vertical movement only (lock X to initial position)
+                if (isAltHeld) {
+                  constrainedX = initialDragXRef.current[pallet.id];
                 }
                 
-                // Then constrain to usable area boundaries
-                const constrainedX = Math.max(usableStartX, Math.min(snappedX, usableEndX - palletLengthPx));
-                const constrainedY = Math.max(usableStartY, Math.min(snappedY, usableEndY - palletWidthPx));
                 return { x: constrainedX, y: constrainedY };
               }}
             >
@@ -1414,15 +1496,30 @@ export function TruckCanvas({
               <Text
                 x={palletLengthPx / 2}
                 y={palletWidthPx / 2}
-                text={`${pallet.weight}kg`}
-                fontSize={12}
+                text={pallet.name || `${pallet.weight}kg`}
+                fontSize={pallet.name ? 11 : 12}
                 fill={COLORS.pallet.text}
                 fontFamily="Arial"
                 align="center"
                 verticalAlign="middle"
-                offsetX={20}
+                offsetX={pallet.name ? 30 : 20}
                 offsetY={6}
               />
+              {pallet.name && (
+                <Text
+                  x={palletLengthPx / 2}
+                  y={palletWidthPx / 2 + 14}
+                  text={`${pallet.weight}kg`}
+                  fontSize={10}
+                  fill={COLORS.pallet.text}
+                  fontFamily="Arial"
+                  align="center"
+                  verticalAlign="middle"
+                  offsetX={20}
+                  offsetY={3}
+                  opacity={0.8}
+                />
+              )}
             </Group>
           );
         })}

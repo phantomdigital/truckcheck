@@ -8,6 +8,7 @@ export type Load = {
   length: number; // mm
   width: number; // mm
   weight: number; // kg
+  name?: string; // Optional pallet name/identifier
 };
 
 interface LoadsState {
@@ -21,6 +22,10 @@ interface LoadsState {
   updateLoadPosition: (id: string, x: number, y: number) => void;
   updateLoadPositions: (updates: { id: string; x: number; y: number }[]) => void; // Batch update for multi-drag
   updateLoadWeight: (id: string, weight: number) => void;
+  updateLoadDimensions: (id: string, length: number, width: number) => void;
+  updateLoadName: (id: string, name: string) => void;
+  updateLoad: (id: string, updates: Partial<Pick<Load, 'length' | 'width' | 'weight' | 'name' | 'x' | 'y'>>) => void; // General update function
+  updateLoads: (updates: Array<{ id: string } & Partial<Pick<Load, 'length' | 'width' | 'weight' | 'name' | 'x' | 'y'>>>) => void; // Batch update
   deleteLoad: (id: string) => void;
   deleteLoads: (ids: string[]) => void; // Batch delete
   duplicateLoad: (id: string) => void;
@@ -90,6 +95,51 @@ export const useLoadsStore = create<LoadsState>()(
             }),
             false,
             'updateLoadWeight'
+          ),
+
+        updateLoadDimensions: (id, length, width) =>
+          set(
+            (state) => ({
+              loads: state.loads.map((load) =>
+                load.id === id ? { ...load, length, width } : load
+              ),
+            }),
+            false,
+            'updateLoadDimensions'
+          ),
+
+        updateLoadName: (id, name) =>
+          set(
+            (state) => ({
+              loads: state.loads.map((load) =>
+                load.id === id ? { ...load, name: name || undefined } : load
+              ),
+            }),
+            false,
+            'updateLoadName'
+          ),
+
+        updateLoad: (id, updates) =>
+          set(
+            (state) => ({
+              loads: state.loads.map((load) =>
+                load.id === id ? { ...load, ...updates } : load
+              ),
+            }),
+            false,
+            'updateLoad'
+          ),
+
+        updateLoads: (updates) =>
+          set(
+            (state) => ({
+              loads: state.loads.map((load) => {
+                const update = updates.find(u => u.id === load.id);
+                return update ? { ...load, ...update } : load;
+              }),
+            }),
+            false,
+            'updateLoads'
           ),
 
         deleteLoad: (id) =>

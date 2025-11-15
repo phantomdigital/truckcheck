@@ -267,6 +267,65 @@ project_specific:
     - Keep URL parameters shareable and bookmarkable
     - Never store sensitive information in URLs or localStorage
 
+  popovers:
+    architecture:
+      - ALL popovers must use the DraggablePopover base component (app/(dashboard)/dashboard/components/popovers/draggable-popover.tsx)
+      - DraggablePopover provides: dragging, collapsing, title editing, consistent styling, and close button
+      - Popover state managed centrally in useUIStore (app/(dashboard)/dashboard/hooks/use-ui-store.ts)
+      - Never create standalone floating UI components - always extend DraggablePopover
+    
+    state_management:
+      - Add popover state to useUIStore with structure: { visible: boolean, x: number, y: number, collapsed?: boolean }
+      - Create setter function (e.g., setAlignPopover, setPalletEditPopover) in useUIStore
+      - Setter must implement smart positioning logic to avoid overlaps with other visible popovers
+      - Store position state so manual user repositioning is preserved across show/hide
+    
+    smart_positioning:
+      - MANDATORY: All new popovers must implement smart positioning in their setter function
+      - When opening (visible: true), check for overlaps with ALL currently visible popovers
+      - Include in overlap detection: stackable popovers, compliance, addPallet, palletEdit, align, etc.
+      - Smart positioning algorithm:
+        1. Collect all visible popovers with their x, y, and height
+        2. Check if current position overlaps with any visible popover
+        3. If overlap detected, place to the right of rightmost popover
+        4. If no room on right (would go off screen), place below all popovers
+        5. Validate position is within screen boundaries
+      - Use constants: POPOVER_WIDTH (320), POPOVER_SPACING (20), COLLAPSED_POPOVER_HEIGHT (56)
+      - When user manually drags popover, respect that position on next open (unless overlaps)
+      - See setPalletEditPopover and setAlignPopover in use-ui-store.ts as reference implementations
+    
+    creating_new_popovers:
+      - Create new popover component in app/(dashboard)/dashboard/components/popovers/
+      - Import and use DraggablePopover as wrapper
+      - Add state to UIState interface in use-ui-store.ts
+      - Add default state in useUIStore create function
+      - Implement setter with smart positioning (copy pattern from setAlignPopover)
+      - Pass handlers from parent component (usually load-calculator.tsx)
+      - Render conditionally based on visible state: {popover.visible && <YourPopover ... />}
+    
+    popover_props:
+      - position: { x: number; y: number } - current position
+      - onPositionChange: (pos: { x: number; y: number }) => void - update position in store
+      - onClose?: () => void - set visible to false in store
+      - collapsed?: boolean - current collapsed state
+      - onCollapsedChange?: (collapsed: boolean) => void - update collapsed in store
+      - Additional props specific to popover functionality
+    
+    styling:
+      - Use consistent dark theme: bg-gray-800, border-gray-700, text-gray-300
+      - Buttons: hover:bg-gray-700, text-gray-300
+      - Disabled state: opacity-50, cursor-not-allowed
+      - Use shadcn/ui Button component with variant="ghost" for popover actions
+      - Min width around 280-320px depending on content
+      - Use space-y-4 for section spacing, space-y-2 for item spacing
+    
+    examples:
+      - PalletEditPopover: Edit single or multiple pallets, shows different UI for multi-edit
+      - AlignPopover: Groups alignment, distribution, and packing tools like Illustrator
+      - AddPalletPopover: Create new pallets with custom dimensions
+      - BodyConfigPopover: Configure truck body dimensions and wall thickness
+      - Pattern: Specialized popovers for specific tasks, opened from toolbar or canvas interactions
+
 ## Stripe & Subscriptions
 
 stripe:

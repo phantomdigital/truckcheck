@@ -7,11 +7,12 @@ import { DashboardMenu } from './dashboard-menu';
 import { ToolsBar } from './tools-bar';
 import { OrientationWarning } from './orientation-warning';
 import { TruckCanvas } from './truck-canvas';
-import { ISUZU_FVR_170_300 } from '@/lib/load-calculator/truck-config';
+import { ISUZU_FVR_170_300, getEffectiveLimits } from '@/lib/load-calculator/truck-config';
 import { BodyConfigPopover } from './popovers/body-config-popover';
 import { FixedCompliancePopover } from './popovers/fixed-compliance-popover';
 import { PalletEditPopover } from './popovers/pallet-edit-popover';
 import { AddPalletPopover } from './popovers/add-pallet-popover';
+import { AlignPopover } from './popovers/align-popover';
 import { calculateWeightDistribution, getUsableDimensions } from '@/lib/load-calculator/physics';
 import type { TruckProfile, Pallet } from '@/lib/load-calculator/types';
 import { BodyType, SuspensionType } from '@/lib/load-calculator/types';
@@ -50,6 +51,10 @@ export function LoadCalculator() {
     updateLoadPosition,
     updateLoadPositions,
     updateLoadWeight,
+    updateLoadDimensions,
+    updateLoadName,
+    updateLoad,
+    updateLoads,
     deleteLoad,
     deleteLoads,
     duplicateLoad,
@@ -106,6 +111,8 @@ export function LoadCalculator() {
   const setPalletEditPopover = useUIStore((state) => state.setPalletEditPopover);
   const addPalletPopover = useUIStore((state) => state.addPalletPopover);
   const setAddPalletPopover = useUIStore((state) => state.setAddPalletPopover);
+  const alignPopover = useUIStore((state) => state.alignPopover);
+  const setAlignPopover = useUIStore((state) => state.setAlignPopover);
 
   const activeTool = useCanvasStore((state) => state.activeTool);
   const setActiveTool = useCanvasStore((state) => state.setActiveTool);
@@ -119,6 +126,9 @@ export function LoadCalculator() {
   const bodyStartPosition = ISUZU_FVR_170_300.bedStart + fromBackOfCab; // Where body actually starts
   const maxAvailableBodyLength = ISUZU_FVR_170_300.maxBodyLength - fromBackOfCab; // Reduced by spacing
 
+  // Get effective limits (minimum of manufacturer vs GML regulatory limits)
+  const effectiveLimits = useMemo(() => getEffectiveLimits(ISUZU_FVR_170_300), []);
+
   // Convert TruckConfig (mm) to TruckProfile (metres) for physics calculations
   const truckProfile: TruckProfile = useMemo(() => ({
     id: 'default',
@@ -130,9 +140,9 @@ export function LoadCalculator() {
     tare_weight: weighBridgeReadings.frontAxle + weighBridgeReadings.rearAxle,
     front_tare_weight: weighBridgeReadings.frontAxle,
     rear_tare_weight: weighBridgeReadings.rearAxle,
-    gvm: ISUZU_FVR_170_300.gvm,
-    front_axle_limit: ISUZU_FVR_170_300.frontAxleLimit,
-    rear_axle_limit: ISUZU_FVR_170_300.rearAxleLimit,
+    gvm: effectiveLimits.gvm, // Use effective limit (manufacturer vs GML)
+    front_axle_limit: effectiveLimits.frontAxleLimit, // Use effective limit (manufacturer vs GML)
+    rear_axle_limit: effectiveLimits.rearAxleLimit, // Use effective limit (manufacturer vs GML)
     front_overhang: ISUZU_FVR_170_300.foh / 1000, // mm to metres
     cab_to_axle: ISUZU_FVR_170_300.ca / 1000, // mm to metres
     rear_overhang: ISUZU_FVR_170_300.roh / 1000, // mm to metres
@@ -140,7 +150,7 @@ export function LoadCalculator() {
     wall_thickness_front: wallThickness.front / 1000, // mm to metres
     wall_thickness_rear: wallThickness.rear / 1000, // mm to metres
     wall_thickness_sides: wallThickness.sides / 1000, // mm to metres
-  }), [bodyDimensions, weighBridgeReadings, wallThickness]);
+  }), [bodyDimensions, weighBridgeReadings, wallThickness, effectiveLimits]);
 
   // Get usable dimensions accounting for wall thickness
   const usableDimensions = useMemo(() => {
@@ -254,6 +264,13 @@ export function LoadCalculator() {
         };
         addLoad(duplicatedLoad);
         selectPallet(duplicatedLoad.id);
+        // Open edit popover for the newly duplicated pallet
+        setTimeout(() => {
+          setPalletEditPopover({
+            visible: true,
+            palletId: duplicatedLoad.id,
+          });
+        }, 0);
         return;
       }
     }
@@ -286,6 +303,13 @@ export function LoadCalculator() {
           };
           addLoad(duplicatedLoad);
           selectPallet(duplicatedLoad.id);
+          // Open edit popover for the newly duplicated pallet
+          setTimeout(() => {
+            setPalletEditPopover({
+              visible: true,
+              palletId: duplicatedLoad.id,
+            });
+          }, 0);
           return;
         }
       }
@@ -301,7 +325,14 @@ export function LoadCalculator() {
     };
     addLoad(duplicatedLoad);
     selectPallet(duplicatedLoad.id);
-  }, [loads, bodyStartPosition, usableDimensions, addLoad, selectPallet]);
+    // Open edit popover for the newly duplicated pallet
+    setTimeout(() => {
+      setPalletEditPopover({
+        visible: true,
+        palletId: duplicatedLoad.id,
+      });
+    }, 0);
+  }, [loads, bodyStartPosition, usableDimensions, addLoad, selectPallet, setPalletEditPopover]);
 
   // Use refs to avoid dependency issues and prevent rapid-fire updates
   const selectedPalletIdsRef = useRef(selectedPalletIds);
@@ -349,7 +380,7 @@ export function LoadCalculator() {
           } else {
             deleteLoads(currentSelectedIds);
           }
-          setPalletEditPopover({ visible: false, palletId: null, x: 0, y: 0 });
+          setPalletEditPopover({ visible: false, palletId: null, x: 0, y: 0, collapsed: false });
         }
         return;
       }
@@ -451,6 +482,16 @@ export function LoadCalculator() {
             handleDuplicatePallet(currentSelectedIds[0]);
           } else {
             duplicateLoads(currentSelectedIds);
+            // Open edit popover for the first duplicated pallet
+            setTimeout(() => {
+              const newSelectedIds = useLoadsStore.getState().selectedPalletIds;
+              if (newSelectedIds.length > 0) {
+                setPalletEditPopover({
+                  visible: true,
+                  palletId: newSelectedIds[0],
+                });
+              }
+            }, 0);
           }
         }
         return;
@@ -539,6 +580,311 @@ export function LoadCalculator() {
   // Instead, body config changes are validated before being applied to prevent pallets from going out of bounds.
   // This provides better UX - users can't accidentally lose their pallet configurations.
 
+  // Distribution functions for selected pallets - evenly space them across
+  const handleDistributeHorizontal = useCallback(() => {
+    if (selectedPalletIds.length < 2) return;
+    
+    const selectedPallets = loads.filter(load => selectedPalletIds.includes(load.id));
+    if (selectedPallets.length < 2) return;
+    
+    // First selected pallet is the reference - use its Y position for alignment
+    const referencePallet = selectedPallets[0];
+    const referenceY = referencePallet.y;
+    
+    // Sort pallets by their current X position (left to right)
+    const sortedPallets = [...selectedPallets].sort((a, b) => a.x - b.x);
+    
+    // Find the leftmost left edge and rightmost right edge
+    const leftmostX = Math.min(...sortedPallets.map(p => p.x));
+    const rightmostX = Math.max(...sortedPallets.map(p => p.x + p.length));
+    
+    // Calculate total width of all pallets
+    const totalWidth = sortedPallets.reduce((sum, p) => sum + p.length, 0);
+    
+    // Calculate available space for distribution (space between leftmost and rightmost edges)
+    const totalSpan = rightmostX - leftmostX;
+    const availableSpace = totalSpan - totalWidth;
+    
+    // Calculate spacing between pallets (even distribution)
+    // If availableSpace is negative (overlapping), use minimum spacing of 10mm
+    const spacing = availableSpace > 0 
+      ? availableSpace / (sortedPallets.length - 1)
+      : 10; // Minimum 10mm spacing if pallets overlap
+    
+    // Distribute pallets evenly from left to right
+    // Start from the leftmost position
+    // Align all pallets to the reference Y position
+    let currentX = leftmostX;
+    const updates = sortedPallets.map(pallet => {
+      const newX = currentX;
+      currentX += pallet.length + spacing;
+      return {
+        id: pallet.id,
+        x: newX,
+        y: referenceY, // Align to first pallet's Y position
+      };
+    });
+    
+    updateLoadPositions(updates);
+  }, [loads, selectedPalletIds, updateLoadPositions]);
+
+  const handleDistributeVertical = useCallback(() => {
+    if (selectedPalletIds.length < 2) return;
+    
+    const selectedPallets = loads.filter(load => selectedPalletIds.includes(load.id));
+    if (selectedPallets.length < 2) return;
+    
+    // First selected pallet is the reference - use its X position for alignment
+    const referencePallet = selectedPallets[0];
+    const referenceX = referencePallet.x;
+    
+    // Sort pallets by their current Y position (top to bottom)
+    const sortedPallets = [...selectedPallets].sort((a, b) => a.y - b.y);
+    
+    // Find the topmost top edge and bottommost bottom edge
+    const topmostY = Math.min(...sortedPallets.map(p => p.y));
+    const bottommostY = Math.max(...sortedPallets.map(p => p.y + p.width));
+    
+    // Calculate total height of all pallets
+    const totalHeight = sortedPallets.reduce((sum, p) => sum + p.width, 0);
+    
+    // Calculate available space for distribution (space between topmost and bottommost edges)
+    const totalSpan = bottommostY - topmostY;
+    const availableSpace = totalSpan - totalHeight;
+    
+    // Calculate spacing between pallets (even distribution)
+    // If availableSpace is negative (overlapping), use minimum spacing of 10mm
+    const spacing = availableSpace > 0 
+      ? availableSpace / (sortedPallets.length - 1)
+      : 10; // Minimum 10mm spacing if pallets overlap
+    
+    // Distribute pallets evenly from top to bottom
+    // Align all pallets to the reference X position
+    let currentY = topmostY;
+    const updates = sortedPallets.map(pallet => {
+      const newY = currentY;
+      currentY += pallet.width + spacing;
+      return {
+        id: pallet.id,
+        x: referenceX, // Align to first pallet's X position
+        y: newY,
+      };
+    });
+    
+    updateLoadPositions(updates);
+  }, [loads, selectedPalletIds, updateLoadPositions]);
+
+  // Pack functions - place pallets directly adjacent with no gaps
+  const handlePackHorizontal = useCallback(() => {
+    if (selectedPalletIds.length < 2) return;
+    
+    const selectedPallets = loads.filter(load => selectedPalletIds.includes(load.id));
+    if (selectedPallets.length < 2) return;
+    
+    // First selected pallet is the reference - use its Y position for alignment
+    const referencePallet = selectedPallets[0];
+    const referenceY = referencePallet.y;
+    
+    // Sort pallets by their current X position (left to right)
+    const sortedPallets = [...selectedPallets].sort((a, b) => a.x - b.x);
+    
+    // Start from the leftmost position
+    const leftmostX = Math.min(...sortedPallets.map(p => p.x));
+    
+    // Pack pallets tightly from left to right with 0 spacing
+    let currentX = leftmostX;
+    const updates = sortedPallets.map(pallet => {
+      const newX = currentX;
+      currentX += pallet.length; // No spacing - directly adjacent
+      return {
+        id: pallet.id,
+        x: newX,
+        y: referenceY, // Align to first pallet's Y position
+      };
+    });
+    
+    updateLoadPositions(updates);
+  }, [loads, selectedPalletIds, updateLoadPositions]);
+
+  const handlePackVertical = useCallback(() => {
+    if (selectedPalletIds.length < 2) return;
+    
+    const selectedPallets = loads.filter(load => selectedPalletIds.includes(load.id));
+    if (selectedPallets.length < 2) return;
+    
+    // First selected pallet is the reference - use its X position for alignment
+    const referencePallet = selectedPallets[0];
+    const referenceX = referencePallet.x;
+    
+    // Sort pallets by their current Y position (top to bottom)
+    const sortedPallets = [...selectedPallets].sort((a, b) => a.y - b.y);
+    
+    // Start from the topmost position
+    const topmostY = Math.min(...sortedPallets.map(p => p.y));
+    
+    // Pack pallets tightly from top to bottom with 0 spacing
+    let currentY = topmostY;
+    const updates = sortedPallets.map(pallet => {
+      const newY = currentY;
+      currentY += pallet.width; // No spacing - directly adjacent
+      return {
+        id: pallet.id,
+        x: referenceX, // Align to first pallet's X position
+        y: newY,
+      };
+    });
+    
+    updateLoadPositions(updates);
+  }, [loads, selectedPalletIds, updateLoadPositions]);
+
+  // Alignment functions - align to body edges and center (preserving relative spacing in groups)
+  const handleAlignToLeft = useCallback(() => {
+    if (selectedPalletIds.length < 1) return;
+    
+    const selectedPallets = loads.filter(load => selectedPalletIds.includes(load.id));
+    if (selectedPallets.length < 1) return;
+    
+    // Align to left edge of usable area (after front wall)
+    const bodyStartX = bodyStartPosition;
+    const leftEdge = bodyStartX + usableDimensions.usableX;
+    
+    // Find the leftmost pallet
+    const leftmostX = Math.min(...selectedPallets.map(p => p.x));
+    const offsetX = leftEdge - leftmostX;
+    
+    // Move all pallets by the same offset to preserve spacing
+    const updates = selectedPallets.map(pallet => ({
+      id: pallet.id,
+      x: pallet.x + offsetX,
+      y: pallet.y, // Keep Y unchanged
+    }));
+    
+    updateLoadPositions(updates);
+  }, [loads, selectedPalletIds, bodyStartPosition, usableDimensions, updateLoadPositions]);
+
+  const handleAlignToRight = useCallback(() => {
+    if (selectedPalletIds.length < 1) return;
+    
+    const selectedPallets = loads.filter(load => selectedPalletIds.includes(load.id));
+    if (selectedPallets.length < 1) return;
+    
+    // Align to right edge of usable area (before rear wall)
+    const bodyStartX = bodyStartPosition;
+    const rightEdge = bodyStartX + usableDimensions.usableX + usableDimensions.usableLength;
+    
+    // Find the rightmost pallet's right edge
+    const rightmostX = Math.max(...selectedPallets.map(p => p.x + p.length));
+    const offsetX = rightEdge - rightmostX;
+    
+    // Move all pallets by the same offset to preserve spacing
+    const updates = selectedPallets.map(pallet => ({
+      id: pallet.id,
+      x: pallet.x + offsetX,
+      y: pallet.y, // Keep Y unchanged
+    }));
+    
+    updateLoadPositions(updates);
+  }, [loads, selectedPalletIds, bodyStartPosition, usableDimensions, updateLoadPositions]);
+
+  const handleAlignToCenterX = useCallback(() => {
+    if (selectedPalletIds.length < 1) return;
+    
+    const selectedPallets = loads.filter(load => selectedPalletIds.includes(load.id));
+    if (selectedPallets.length < 1) return;
+    
+    // Center in usable area
+    const bodyStartX = bodyStartPosition;
+    const bodyCenterX = bodyStartX + usableDimensions.usableX + (usableDimensions.usableLength / 2);
+    
+    // Find the center of the selection
+    const selectionLeft = Math.min(...selectedPallets.map(p => p.x));
+    const selectionRight = Math.max(...selectedPallets.map(p => p.x + p.length));
+    const selectionCenterX = (selectionLeft + selectionRight) / 2;
+    
+    const offsetX = bodyCenterX - selectionCenterX;
+    
+    // Move all pallets by the same offset to preserve spacing
+    const updates = selectedPallets.map(pallet => ({
+      id: pallet.id,
+      x: pallet.x + offsetX,
+      y: pallet.y, // Keep Y unchanged
+    }));
+    
+    updateLoadPositions(updates);
+  }, [loads, selectedPalletIds, bodyStartPosition, usableDimensions, updateLoadPositions]);
+
+  const handleAlignToTop = useCallback(() => {
+    if (selectedPalletIds.length < 1) return;
+    
+    const selectedPallets = loads.filter(load => selectedPalletIds.includes(load.id));
+    if (selectedPallets.length < 1) return;
+    
+    // Align to top edge of usable area (after side wall)
+    const topEdge = usableDimensions.usableY;
+    
+    // Find the topmost pallet
+    const topmostY = Math.min(...selectedPallets.map(p => p.y));
+    const offsetY = topEdge - topmostY;
+    
+    // Move all pallets by the same offset to preserve spacing
+    const updates = selectedPallets.map(pallet => ({
+      id: pallet.id,
+      x: pallet.x, // Keep X unchanged
+      y: pallet.y + offsetY,
+    }));
+    
+    updateLoadPositions(updates);
+  }, [loads, selectedPalletIds, usableDimensions, updateLoadPositions]);
+
+  const handleAlignToBottom = useCallback(() => {
+    if (selectedPalletIds.length < 1) return;
+    
+    const selectedPallets = loads.filter(load => selectedPalletIds.includes(load.id));
+    if (selectedPallets.length < 1) return;
+    
+    // Align to bottom edge of usable area (before side wall)
+    const bottomEdge = usableDimensions.usableY + usableDimensions.usableWidth;
+    
+    // Find the bottommost pallet's bottom edge
+    const bottommostY = Math.max(...selectedPallets.map(p => p.y + p.width));
+    const offsetY = bottomEdge - bottommostY;
+    
+    // Move all pallets by the same offset to preserve spacing
+    const updates = selectedPallets.map(pallet => ({
+      id: pallet.id,
+      x: pallet.x, // Keep X unchanged
+      y: pallet.y + offsetY,
+    }));
+    
+    updateLoadPositions(updates);
+  }, [loads, selectedPalletIds, usableDimensions, updateLoadPositions]);
+
+  const handleAlignToCenterY = useCallback(() => {
+    if (selectedPalletIds.length < 1) return;
+    
+    const selectedPallets = loads.filter(load => selectedPalletIds.includes(load.id));
+    if (selectedPallets.length < 1) return;
+    
+    // Center in usable area
+    const bodyCenterY = usableDimensions.usableY + (usableDimensions.usableWidth / 2);
+    
+    // Find the center of the selection
+    const selectionTop = Math.min(...selectedPallets.map(p => p.y));
+    const selectionBottom = Math.max(...selectedPallets.map(p => p.y + p.width));
+    const selectionCenterY = (selectionTop + selectionBottom) / 2;
+    
+    const offsetY = bodyCenterY - selectionCenterY;
+    
+    // Move all pallets by the same offset to preserve spacing
+    const updates = selectedPallets.map(pallet => ({
+      id: pallet.id,
+      x: pallet.x, // Keep X unchanged
+      y: pallet.y + offsetY,
+    }));
+    
+    updateLoadPositions(updates);
+  }, [loads, selectedPalletIds, usableDimensions, updateLoadPositions]);
+
   return (
     <>
       <OrientationWarning />
@@ -579,6 +925,16 @@ export function LoadCalculator() {
                 handleDuplicatePallet(selectedPalletIds[0]);
               } else {
                 duplicateLoads(selectedPalletIds);
+                // Open edit popover for the first duplicated pallet
+                setTimeout(() => {
+                  const newSelectedIds = useLoadsStore.getState().selectedPalletIds;
+                  if (newSelectedIds.length > 0) {
+                    setPalletEditPopover({
+                      visible: true,
+                      palletId: newSelectedIds[0],
+                    });
+                  }
+                }, 0);
               }
             }
           }}
@@ -604,6 +960,8 @@ export function LoadCalculator() {
           activeTool={activeTool}
           onToolChange={setActiveTool}
           onResetView={resetView}
+          selectedPalletCount={selectedPalletIds.length}
+          onOpenAlign={() => setAlignPopover({ visible: !alignPopover.visible })}
         />
 
         {/* Full Canvas Area with DndContext */}
@@ -634,12 +992,11 @@ export function LoadCalculator() {
                   if (currentSelected.length > 0) {
                   setPalletEditPopover({
                     visible: true,
-                      palletId: currentSelected.length === 1 ? currentSelected[0] : null,
-                    x: palletEditPopover.x,
-                    y: palletEditPopover.y,
+                    palletId: currentSelected.length === 1 ? currentSelected[0] : null,
+                    // Don't override x/y - let smart positioning handle it if needed
                   });
                   } else {
-                  setPalletEditPopover({ visible: false, palletId: null, x: 0, y: 0 });
+                  setPalletEditPopover({ visible: false, palletId: null, x: 0, y: 0, collapsed: false });
                 }
                 }, 0);
               }}
@@ -651,8 +1008,7 @@ export function LoadCalculator() {
                 setPalletEditPopover({
                   visible: true,
                   palletId: id,
-                  x: palletEditPopover.x,
-                  y: palletEditPopover.y,
+                  // Don't override x/y - let smart positioning handle it if needed
                 });
               }}
               onOpenBodyConfig={(focusField) => {
@@ -701,6 +1057,28 @@ export function LoadCalculator() {
               />
             )}
 
+            {/* Align Popover */}
+            {alignPopover.visible && (
+              <AlignPopover
+                position={{ x: alignPopover.x, y: alignPopover.y }}
+                onPositionChange={(pos) => setAlignPopover({ ...pos })}
+                onClose={() => setAlignPopover({ visible: false })}
+                collapsed={alignPopover.collapsed}
+                onCollapsedChange={(collapsed) => setAlignPopover({ collapsed })}
+                selectedPalletCount={selectedPalletIds.length}
+                onDistributeHorizontal={handleDistributeHorizontal}
+                onDistributeVertical={handleDistributeVertical}
+                onPackHorizontal={handlePackHorizontal}
+                onPackVertical={handlePackVertical}
+                onAlignToLeft={handleAlignToLeft}
+                onAlignToRight={handleAlignToRight}
+                onAlignToCenterX={handleAlignToCenterX}
+                onAlignToTop={handleAlignToTop}
+                onAlignToBottom={handleAlignToBottom}
+                onAlignToCenterY={handleAlignToCenterY}
+              />
+            )}
+
             {/* Fixed Compliance Summary in top-right corner */}
             {popovers.compliance.visible && (
               <FixedCompliancePopover
@@ -708,9 +1086,16 @@ export function LoadCalculator() {
                 frontAxleTotal={weightDistribution.front_axle_weight}
                 rearAxleTotal={weightDistribution.rear_axle_weight}
                 gvmTotal={weightDistribution.total_weight}
-                frontAxleLimit={ISUZU_FVR_170_300.frontAxleLimit}
-                rearAxleLimit={ISUZU_FVR_170_300.rearAxleLimit}
-                gvmLimit={ISUZU_FVR_170_300.gvm}
+                frontAxleLimit={effectiveLimits.frontAxleLimit}
+                rearAxleLimit={effectiveLimits.rearAxleLimit}
+                gvmLimit={effectiveLimits.gvm}
+                // Manufacturer limits for comparison
+                manufacturerFrontAxleLimit={ISUZU_FVR_170_300.frontAxleLimit}
+                manufacturerRearAxleLimit={ISUZU_FVR_170_300.rearAxleLimit}
+                manufacturerGvm={ISUZU_FVR_170_300.gvm}
+                // GML information
+                gmlConfig={ISUZU_FVR_170_300.gml}
+                vehicleClassification={ISUZU_FVR_170_300.vehicleClassification}
                 frontAxle={weighBridgeReadings.frontAxle}
                 rearAxle={weighBridgeReadings.rearAxle}
                 onFrontAxleChange={(value) => setWeighBridgeReadings({ ...weighBridgeReadings, frontAxle: value })}
@@ -731,14 +1116,28 @@ export function LoadCalculator() {
                 return (
                   <PalletEditPopover
                     position={{ x: palletEditPopover.x, y: palletEditPopover.y }}
-                    onPositionChange={(pos) => setPalletEditPopover(pos)}
-                    onClose={() => setPalletEditPopover({ visible: false, palletId: null, x: 0, y: 0 })}
+                    onPositionChange={(pos) => setPalletEditPopover({ ...palletEditPopover, ...pos })}
+                    collapsed={palletEditPopover.collapsed}
+                    onCollapsedChange={(collapsed) => setPalletEditPopover({ ...palletEditPopover, collapsed })}
+                    onClose={() => setPalletEditPopover({ visible: false, palletId: null, x: 0, y: 0, collapsed: false })}
                     pallet={singlePallet || undefined}
                     pallets={selectedPallets.length > 1 ? selectedPallets : undefined}
                     onUpdateWeight={updateLoadWeight}
                     onUpdateWeights={(updates) => {
                       updates.forEach(({ id, weight }) => updateLoadWeight(id, weight));
                     }}
+                    onUpdateDimensions={updateLoadDimensions}
+                    onUpdateDimensionsMultiple={(updates) => {
+                      updates.forEach(({ id, length, width }) => updateLoadDimensions(id, length, width));
+                    }}
+                    onUpdateName={updateLoadName}
+                    onUpdateNames={(updates) => {
+                      updates.forEach(({ id, name }) => updateLoadName(id, name));
+                    }}
+                    onUpdate={updateLoad}
+                    onUpdateMultiple={updateLoads}
+                    onUpdatePosition={updateLoadPosition}
+                    onUpdatePositions={updateLoadPositions}
                     onDelete={deleteLoad}
                     onDeleteMultiple={deleteLoads}
                     onDuplicate={handleDuplicatePallet}

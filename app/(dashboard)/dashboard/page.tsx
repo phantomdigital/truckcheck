@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { LoadCalculator } from './components/load-calculator';
+import { DashboardNavServer } from '@/components/dashboard-nav-server';
 import { ISUZU_FVR_170_300, FUSO_SHOGUN_FS76 } from '@/lib/load-calculator/truck-config';
 import type { TruckConfig } from '@/lib/load-calculator/truck-config';
 
@@ -22,6 +23,7 @@ function getTruckConfigFromParams(params: { manufacturer?: string; model?: strin
   return ISUZU_FVR_170_300;
 }
 
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -36,6 +38,13 @@ export default async function DashboardPage({
   
   const selectedTruckConfig = getTruckConfigFromParams(params);
   
-  return <LoadCalculator truckConfig={selectedTruckConfig} />;
+  return (
+    <div className="flex flex-col h-full">
+      <DashboardNavServer />
+      <div className="flex-1 overflow-hidden">
+        <LoadCalculator truckConfig={selectedTruckConfig} />
+      </div>
+    </div>
+  );
 }
 

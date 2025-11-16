@@ -985,19 +985,18 @@ export function LoadCalculator() {
                 selectPallet(id, mode);
                 // Open edit popover when pallets are selected (single or multiple)
                 setTimeout(() => {
-                  const currentSelected = selectedPalletIds.includes(id || '') ? 
-                    (id ? [...selectedPalletIds.filter(sid => sid !== id), id] : selectedPalletIds) :
-                    (id ? [id] : []);
+                  // Get the updated selection state from the store
+                  const updatedSelectedIds = useLoadsStore.getState().selectedPalletIds;
                   
-                  if (currentSelected.length > 0) {
-                  setPalletEditPopover({
-                    visible: true,
-                    palletId: currentSelected.length === 1 ? currentSelected[0] : null,
-                    // Don't override x/y - let smart positioning handle it if needed
-                  });
+                  if (updatedSelectedIds.length > 0) {
+                    setPalletEditPopover({
+                      visible: true,
+                      palletId: updatedSelectedIds.length === 1 ? updatedSelectedIds[0] : null,
+                      // Don't override x/y - let smart positioning handle it if needed
+                    });
                   } else {
-                  setPalletEditPopover({ visible: false, palletId: null, x: 0, y: 0, collapsed: false });
-                }
+                    setPalletEditPopover({ visible: false, palletId: null, x: 0, y: 0, collapsed: false });
+                  }
                 }, 0);
               }}
               onSelectPallets={selectPallets}

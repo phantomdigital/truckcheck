@@ -1503,18 +1503,14 @@ export function TruckCanvas({
                 const snappedX = Math.round(targetX / gridSizePx) * gridSizePx;
                 const snappedY = Math.round(targetY / gridSizePx) * gridSizePx;
                 
-                // Apply boundary constraints (but don't constrain the locked axis if Shift/Alt held)
+                // Apply boundary constraints ONLY if no Shift/Alt constraints are active
+                // When user holds Shift/Alt, they want perfect alignment and should be able to move freely
                 let finalX = snappedX;
                 let finalY = snappedY;
                 
-                // Only apply boundary constraints to axes that can actually move
-                if (!isAltHeld) {
-                  // X can move, so constrain it
+                if (!isShiftHeld && !isAltHeld) {
+                  // Normal drag - apply boundary constraints to both axes
                   finalX = Math.max(usableStartX, Math.min(snappedX, usableEndX - palletLengthPx));
-                }
-                
-                if (!isShiftHeld) {
-                  // Y can move, so constrain it
                   finalY = Math.max(usableStartY, Math.min(snappedY, usableEndY - palletWidthPx));
                 }
                 

@@ -1265,11 +1265,14 @@ export function TruckCanvas({
           const usableEndY = usableTopY + usableWidthPx;
 
           const handleDragStart = (e: Konva.KonvaEventObject<DragEvent>) => {
-            // Use the calculated positions (palletX, palletY) instead of reading from Konva node
-            // This ensures consistency and prevents tiny shifts due to floating-point differences
-            // Store initial positions for constraints (needed even when preventing drag)
-            initialDragYRef.current[pallet.id] = palletY;
-            initialDragXRef.current[pallet.id] = palletX;
+            // Capture the ACTUAL position from Konva at drag start
+            // This is the most reliable source as it's what's actually being rendered
+            const actualX = e.target.x();
+            const actualY = e.target.y();
+            
+            // Store these exact positions for constraints
+            initialDragXRef.current[pallet.id] = actualX;
+            initialDragYRef.current[pallet.id] = actualY;
             
             // Prevent dragging with middle mouse button - should only pan
             // Check both the tracked state and the event's button property
@@ -1278,7 +1281,7 @@ export function TruckCanvas({
               // Just prevent the drag from happening
               e.evt.preventDefault();
               // Force the node to stay in place
-              e.target.setPosition({ x: palletX, y: palletY });
+              e.target.setPosition({ x: actualX, y: actualY });
               // Return false to prevent drag, but don't stop propagation so stage can pan
               return false;
             }
@@ -1286,13 +1289,13 @@ export function TruckCanvas({
             // If this pallet is part of a multi-selection, store initial positions of all selected pallets
             if (selectedPalletIds.length > 1 && selectedPalletIds.includes(pallet.id)) {
               initialPositionsRef.current = {};
-              // Store the dragged pallet's initial position first (use current scope variables)
+              // Store the dragged pallet's initial position (using mm from pallet data)
               initialPositionsRef.current[pallet.id] = {
                 x: pallet.x,
                 y: pallet.y
               };
               
-              // Then store initial positions for all OTHER selected pallets
+              // Store initial positions for ALL selected pallets
               selectedPalletIds.forEach(id => {
                 if (id !== pallet.id) {
                   const selectedPallet = pallets.find(p => p.id === id);
@@ -1301,11 +1304,10 @@ export function TruckCanvas({
                       x: selectedPallet.x,
                       y: selectedPallet.y
                     };
-                    // Store initial Y for each selected pallet (horizontal constraint)
+                    // Store initial pixel positions for each selected pallet
                     const selectedPalletY = bodyTopY + mmToPxLocal(selectedPallet.y);
-                    initialDragYRef.current[id] = selectedPalletY;
-                    // Store initial X for each selected pallet (vertical constraint)
                     const selectedPalletX = mmToPxLocal(selectedPallet.x) + horizontalOffset;
+                    initialDragYRef.current[id] = selectedPalletY;
                     initialDragXRef.current[id] = selectedPalletX;
                   }
                 }
@@ -1317,34 +1319,39 @@ export function TruckCanvas({
             // Prevent drag move if middle mouse button is pressed OR we're panning (should pan instead)
             if (mouseButtonPressed === 1 || isPanning) {
               // Reset position to prevent any movement
-              const initialX = initialDragXRef.current[pallet.id] ?? palletX;
-              const initialY = initialDragYRef.current[pallet.id] ?? palletY;
-              e.target.setPosition({ x: initialX, y: initialY });
+              const initialX = initialDragXRef.current[pallet.id];
+              const initialY = initialDragYRef.current[pallet.id];
+              if (initialX !== undefined && initialY !== undefined) {
+                e.target.setPosition({ x: initialX, y: initialY });
+              }
               return;
             }
             
+            // Get initial positions - must be set by handleDragStart
+            const initialPixelX = initialDragXRef.current[pallet.id];
+            const initialPixelY = initialDragYRef.current[pallet.id];
+            
+            if (initialPixelX === undefined || initialPixelY === undefined) {
+              return; // Skip update if positions not initialized
+            }
+            
             // Konva's drag system handles the Stage transform automatically
-            // e.target.x() and e.target.y() are in world coordinates (before Stage transform)
+            // e.target.x() and e.target.y() are in world coordinates (already constrained by dragBoundFunc)
             const newWorldX = e.target.x();
             const newWorldY = e.target.y();
 
-            // Convert to mm - ensure we're using consistent coordinate system
-            const newXMm = pxToMmLocal(newWorldX - horizontalOffset);
-            const newYMm = pxToMmLocal(newWorldY - bodyTopY);
+            // Calculate deltas in PIXELS first (more accurate), then convert to mm
+            // This delta accounts for any constraints applied by dragBoundFunc (Shift/Alt locks)
+            const deltaXPx = newWorldX - initialPixelX;
+            const deltaYPx = newWorldY - initialPixelY;
+            const deltaXMm = pxToMmLocal(deltaXPx);
+            const deltaYMm = pxToMmLocal(deltaYPx);
 
             // If multiple pallets are selected and this is one of them, move all selected pallets
             if (selectedPalletIds.length > 1 && selectedPalletIds.includes(pallet.id) && onUpdatePalletPositions) {
               const initialPos = initialPositionsRef.current[pallet.id];
-              const initialPixelX = initialDragXRef.current[pallet.id];
-              const initialPixelY = initialDragYRef.current[pallet.id];
               
-              if (initialPos && initialPixelX !== undefined && initialPixelY !== undefined) {
-                // Calculate deltas in PIXELS first (more accurate), then convert to mm
-                const deltaXPx = newWorldX - initialPixelX;
-                const deltaYPx = newWorldY - initialPixelY;
-                const deltaXMm = pxToMmLocal(deltaXPx);
-                const deltaYMm = pxToMmLocal(deltaYPx);
-
+              if (initialPos) {
                 // Calculate new positions for all selected pallets, preserving their relative spacing
                 const updates = selectedPalletIds.map(id => {
                   const initialPalletPos = initialPositionsRef.current[id];
@@ -1361,7 +1368,9 @@ export function TruckCanvas({
                 onUpdatePalletPositions(updates);
               }
             } else if (onUpdatePalletPosition) {
-              // Single pallet movement
+              // Single pallet movement - convert to mm coordinates
+              const newXMm = pxToMmLocal(newWorldX - horizontalOffset);
+              const newYMm = pxToMmLocal(newWorldY - bodyTopY);
               onUpdatePalletPosition(pallet.id, newXMm, newYMm);
             }
           };
@@ -1457,39 +1466,67 @@ export function TruckCanvas({
                 if (mouseButtonPressed === 1 || isPanning) {
                   // Return the initial position to lock the pallet in place
                   // This prevents the pallet from interfering with panning
-                  const initialX = initialDragXRef.current[pallet.id] ?? palletX;
-                  const initialY = initialDragYRef.current[pallet.id] ?? palletY;
-                  return { x: initialX, y: initialY };
+                  return {
+                    x: initialDragXRef.current[pallet.id] ?? pos.x,
+                    y: initialDragYRef.current[pallet.id] ?? pos.y
+                  };
+                }
+                
+                // Get initial positions - these should ALWAYS be set by handleDragStart
+                // If somehow not set, don't apply constraints (just use current position)
+                const initialX = initialDragXRef.current[pallet.id];
+                const initialY = initialDragYRef.current[pallet.id];
+                
+                if (initialX === undefined || initialY === undefined) {
+                  // Positions not initialized - skip constraints
+                  return pos;
                 }
                 
                 // Check if Shift or Alt keys are held for constrained movement
-                const isShiftHeld = shiftKeyPressedRef.current && initialDragYRef.current[pallet.id] !== undefined;
-                const isAltHeld = altKeyPressedRef.current && initialDragXRef.current[pallet.id] !== undefined;
+                const isShiftHeld = shiftKeyPressedRef.current;
+                const isAltHeld = altKeyPressedRef.current;
+                
+                // If Shift is held (horizontal only) or Alt is held (vertical only), lock the perpendicular axis FIRST
+                let targetX = pos.x;
+                let targetY = pos.y;
+                
+                if (isShiftHeld) {
+                  // Lock Y to initial position, only allow X movement
+                  targetY = initialY;
+                } else if (isAltHeld) {
+                  // Lock X to initial position, only allow Y movement
+                  targetX = initialX;
+                }
                 
                 // Apply grid snapping (10mm grid for better precision)
-                // BUT: only snap the axis that's actually moving (not the locked axis)
                 const gridSizePx = mmToPxLocal(10);
-                let snappedX = isAltHeld ? pos.x : Math.round(pos.x / gridSizePx) * gridSizePx;
-                let snappedY = isShiftHeld ? pos.y : Math.round(pos.y / gridSizePx) * gridSizePx;
+                const snappedX = Math.round(targetX / gridSizePx) * gridSizePx;
+                const snappedY = Math.round(targetY / gridSizePx) * gridSizePx;
                 
-                // Apply boundary constraints only for axes that aren't locked by Shift/Alt
-                // If Shift is held (horizontal movement only), don't constrain X
-                // If Alt is held (vertical movement only), don't constrain Y
-                let constrainedX = isShiftHeld ? snappedX : Math.max(usableStartX, Math.min(snappedX, usableEndX - palletLengthPx));
-                let constrainedY = isAltHeld ? snappedY : Math.max(usableStartY, Math.min(snappedY, usableEndY - palletWidthPx));
+                // Apply boundary constraints (but don't constrain the locked axis if Shift/Alt held)
+                let finalX = snappedX;
+                let finalY = snappedY;
                 
-                // Apply shift/alt constraints (lock the perpendicular axis to exact initial position)
-                // If Shift is held, constrain to horizontal movement only (lock Y to initial position)
+                // Only apply boundary constraints to axes that can actually move
+                if (!isAltHeld) {
+                  // X can move, so constrain it
+                  finalX = Math.max(usableStartX, Math.min(snappedX, usableEndX - palletLengthPx));
+                }
+                
+                if (!isShiftHeld) {
+                  // Y can move, so constrain it
+                  finalY = Math.max(usableStartY, Math.min(snappedY, usableEndY - palletWidthPx));
+                }
+                
+                // Double-check: if Shift/Alt is held, ensure the locked axis is EXACTLY at initial position
                 if (isShiftHeld) {
-                  constrainedY = initialDragYRef.current[pallet.id];
+                  finalY = initialY;
                 }
-                
-                // If Alt is held, constrain to vertical movement only (lock X to initial position)
                 if (isAltHeld) {
-                  constrainedX = initialDragXRef.current[pallet.id];
+                  finalX = initialX;
                 }
                 
-                return { x: constrainedX, y: constrainedY };
+                return { x: finalX, y: finalY };
               }}
             >
               {/* Main pallet fill */}

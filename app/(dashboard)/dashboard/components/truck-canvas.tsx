@@ -1075,7 +1075,14 @@ export function TruckCanvas({
           if (activeTool === 'zoom-in' || activeTool === 'zoom-out') {
             // Zoom tools don't work well with tap, skip
           } else {
-            // For select tool, handle tap as click
+            // For select tool, handle tap as click - use same logic as handleStageClick
+            // Check if a drag-selection just completed, skip this tap to prevent immediate deselect
+            if (selectionCompletedRef.current) {
+              selectionCompletedRef.current = false; // Reset flag so next tap works normally
+              return;
+            }
+            
+            // If tapping on stage (not a pallet), deselect
             const stage = e.target.getStage();
             if (stage && e.target === stage) {
               onSelectPallet?.(null);

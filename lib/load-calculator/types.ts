@@ -94,8 +94,12 @@ export interface Pallet {
 export interface WeightDistribution {
   // Total weights (kg)
   total_weight: number
-  front_axle_weight: number
-  rear_axle_weight: number
+  front_axle_weight: number  // Total weight on front axle group
+  rear_axle_weight: number   // Total weight on rear axle group
+  
+  // Individual axle weights (for multi-axle configurations)
+  front_axle_weights?: number[]  // Weight on each front axle (kg) - if multiple front axles
+  rear_axle_weights?: number[]   // Weight on each rear axle (kg) - if multiple rear axles
   
   // Available capacity remaining (kg)
   total_capacity_remaining: number

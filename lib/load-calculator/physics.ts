@@ -8,6 +8,7 @@
  */
 
 import type { TruckProfile, Pallet, WeightDistribution } from './types'
+import type { TruckConfig } from './truck-config'
 import { SuspensionType, BodyType } from './types'
 
 /**
@@ -206,6 +207,79 @@ function calculateMixedSuspensionEffect(
 }
 
 /**
+ * Distribute weight within an axle group (for multi-axle configurations)
+ * 
+ * For twin steer or tandem axles, weight is distributed based on:
+ * - COG position relative to each axle
+ * - Axle spacing
+ * - Load-sharing suspension (for twin steer) makes distribution more even
+ * 
+ * @param totalWeight - Total weight on the axle group (kg)
+ * @param axlePositions - Individual axle positions (m from front of body)
+ * @param cogX - Center of gravity X position (m from front of body)
+ * @param hasLoadSharing - True if load-sharing suspension (twin steer)
+ * @returns Array of weights on each axle (kg)
+ */
+function distributeWeightWithinAxleGroup(
+  totalWeight: number,
+  axlePositions: number[],
+  cogX: number,
+  hasLoadSharing: boolean = false
+): number[] {
+  if (axlePositions.length === 1) {
+    // Single axle - all weight goes to it
+    return [totalWeight];
+  }
+  
+  if (axlePositions.length === 2) {
+    const [axle1Pos, axle2Pos] = axlePositions;
+    const axleSpacing = Math.abs(axle2Pos - axle1Pos);
+    
+    if (axleSpacing === 0) {
+      // Axles at same position - split evenly
+      return [totalWeight / 2, totalWeight / 2];
+    }
+    
+    // Calculate weight distribution using moment equations
+    // Taking moments about axle 1:
+    // Weight on axle 2 = (totalWeight × distance from COG to axle 1) / axle spacing
+    const cogToAxle1 = cogX - axle1Pos;
+    const weightOnAxle2 = (totalWeight * cogToAxle1) / axleSpacing;
+    const weightOnAxle1 = totalWeight - weightOnAxle2;
+    
+    // For load-sharing suspension (twin steer), distribution is more even
+    // Apply a smoothing factor: 70% of calculated + 30% even split
+    if (hasLoadSharing) {
+      const evenSplit = totalWeight / 2;
+      const calculatedAxle1 = weightOnAxle1;
+      const calculatedAxle2 = weightOnAxle2;
+      return [
+        calculatedAxle1 * 0.7 + evenSplit * 0.3,
+        calculatedAxle2 * 0.7 + evenSplit * 0.3
+      ];
+    }
+    
+    return [weightOnAxle1, weightOnAxle2];
+  }
+  
+  // For 3+ axles, use proportional distribution based on COG position
+  // This is less common but handle it gracefully
+  const weights: number[] = [];
+  const totalSpacing = axlePositions[axlePositions.length - 1] - axlePositions[0];
+  
+  for (let i = 0; i < axlePositions.length; i++) {
+    const axlePos = axlePositions[i];
+    const distanceFromCOG = Math.abs(cogX - axlePos);
+    const inverseDistance = 1 / (distanceFromCOG + 0.1); // Add small value to avoid division by zero
+    weights.push(inverseDistance);
+  }
+  
+  // Normalize weights to sum to totalWeight
+  const sum = weights.reduce((a, b) => a + b, 0);
+  return weights.map(w => (w / sum) * totalWeight);
+}
+
+/**
  * Calculate weight distribution between front and rear axles
  * 
  * Physics:
@@ -224,7 +298,8 @@ function calculateMixedSuspensionEffect(
  */
 export function calculateWeightDistribution(
   truck: TruckProfile,
-  pallets: Pallet[]
+  pallets: Pallet[],
+  truckConfig?: TruckConfig  // Optional: provides individual axle positions for multi-axle configurations
 ): WeightDistribution {
   // Calculate total load weight
   const loadWeight = pallets.reduce((sum, p) => sum + p.weight, 0)
@@ -255,13 +330,40 @@ export function calculateWeightDistribution(
   // Calculate actual axle positions relative to body front (0m)
   let frontAxlePos: number
   let rearAxlePos: number
+  let actualWheelbase: number // Technical wheelbase between axle group centers
   
-  if (truck.cab_to_axle) {
+  // For multi-axle configurations, use calculated group centers from TruckConfig
+  // This is critical for 8x4 twin steer where spec sheet "wheelbase" may be measured differently
+  if (truckConfig && (truckConfig.frontAxlePositions || truckConfig.rearAxlePositions)) {
+    const bodyStartFromFront = truckConfig.bedStart / 1000; // Convert mm to metres
+    
+    // Calculate front axle group center position (metres from body front)
+    if (truckConfig.frontAxlePositions && truckConfig.frontAxlePositions.length > 1) {
+      const frontAxlePositionsM = truckConfig.frontAxlePositions.map(pos => pos / 1000);
+      const frontGroupCenter = frontAxlePositionsM.reduce((a, b) => a + b, 0) / frontAxlePositionsM.length;
+      frontAxlePos = frontGroupCenter - bodyStartFromFront;
+    } else {
+      frontAxlePos = (truckConfig.frontAxlePosition / 1000) - bodyStartFromFront;
+    }
+    
+    // Calculate rear axle group center position (metres from body front)
+    if (truckConfig.rearAxlePositions && truckConfig.rearAxlePositions.length > 1) {
+      const rearAxlePositionsM = truckConfig.rearAxlePositions.map(pos => pos / 1000);
+      const rearGroupCenter = rearAxlePositionsM.reduce((a, b) => a + b, 0) / rearAxlePositionsM.length;
+      rearAxlePos = rearGroupCenter - bodyStartFromFront;
+    } else {
+      rearAxlePos = (truckConfig.rearAxlePosition / 1000) - bodyStartFromFront;
+    }
+    
+    // Calculate actual technical wheelbase between group centers
+    actualWheelbase = rearAxlePos - frontAxlePos;
+  } else if (truck.cab_to_axle) {
     // Use accurate manufacturer dimensions (CA = Cab to Axle)
     // Rear axle is CA distance from front of body (back of cab)
     rearAxlePos = truck.cab_to_axle
     // Front axle is wheelbase distance before rear axle
     frontAxlePos = rearAxlePos - truck.wheelbase
+    actualWheelbase = truck.wheelbase
   } else {
     // Fallback: estimate based on typical cab length
     // Front axle is under the cab, before the body starts
@@ -269,6 +371,7 @@ export function calculateWeightDistribution(
     frontAxlePos = -TYPICAL_CAB_LENGTH + truck.front_overhang // e.g., -2.0 + 1.5 = -0.5m
     // Rear axle is wheelbase distance from front axle
     rearAxlePos = frontAxlePos + truck.wheelbase // e.g., -0.5 + 5.2 = 4.7m
+    actualWheelbase = truck.wheelbase
   }
 
   // Distance from COG to rear axle
@@ -306,7 +409,8 @@ export function calculateWeightDistribution(
   //    - This is accounted for by the negative cogToRearAxle creating a larger moment
   // Calculate load distribution using moment equation
   // This correctly accounts for weight transfer in BOTH directions
-  let loadOnFrontAxle = (loadWeight * cogToRearAxle) / truck.wheelbase
+  // Use actualWheelbase which is calculated from actual axle group centers
+  let loadOnFrontAxle = (loadWeight * cogToRearAxle) / actualWheelbase
   let loadOnRearAxle = loadWeight - loadOnFrontAxle
   
   // Note: We intentionally allow loadOnFrontAxle/loadOnRearAxle to be negative.
@@ -348,7 +452,7 @@ export function calculateWeightDistribution(
         totalRearAxleLoad,
         frontSuspension,
         rearSuspension,
-        truck.wheelbase,
+        actualWheelbase,
         estimatedCOGHeight
       )
       
@@ -398,10 +502,46 @@ export function calculateWeightDistribution(
   const isFrontOverweight = frontAxleWeight > truck.front_axle_limit
   const isRearOverweight = rearAxleWeight > truck.rear_axle_limit
 
+  // Distribute weight within axle groups if multi-axle configuration
+  let frontAxleWeights: number[] | undefined;
+  let rearAxleWeights: number[] | undefined;
+  
+  if (truckConfig) {
+    // Convert axle positions from mm to metres and adjust relative to body front
+    // Axle positions in TruckConfig are from front of truck, need to convert to body coordinates
+    const bodyStartFromFront = truckConfig.bedStart / 1000; // Convert mm to metres
+    
+    if (truckConfig.frontAxlePositions && truckConfig.frontAxlePositions.length > 1) {
+      // Convert front axle positions to body coordinates (metres)
+      const frontAxlePositionsM = truckConfig.frontAxlePositions.map(pos => (pos / 1000) - bodyStartFromFront);
+      const hasLoadSharing = truckConfig.vehicleClassification?.hasLoadSharingSuspension ?? false;
+      frontAxleWeights = distributeWeightWithinAxleGroup(
+        frontAxleWeight,
+        frontAxlePositionsM,
+        loadCOG.x,
+        hasLoadSharing
+      );
+    }
+    
+    if (truckConfig.rearAxlePositions && truckConfig.rearAxlePositions.length > 1) {
+      // Convert rear axle positions to body coordinates (metres)
+      const rearAxlePositionsM = truckConfig.rearAxlePositions.map(pos => (pos / 1000) - bodyStartFromFront);
+      // Tandem axles don't have load-sharing suspension
+      rearAxleWeights = distributeWeightWithinAxleGroup(
+        rearAxleWeight,
+        rearAxlePositionsM,
+        loadCOG.x,
+        false
+      );
+    }
+  }
+
   return {
     total_weight: totalWeight,
     front_axle_weight: frontAxleWeight,
     rear_axle_weight: rearAxleWeight,
+    front_axle_weights: frontAxleWeights,
+    rear_axle_weights: rearAxleWeights,
     total_capacity_remaining: totalCapacityRemaining,
     front_axle_capacity_remaining: frontCapacityRemaining,
     rear_axle_capacity_remaining: rearCapacityRemaining,

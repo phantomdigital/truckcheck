@@ -207,12 +207,16 @@ export function TruckCanvas({
     // Only sync if external zoom actually changed (not just different from current stageScale)
     if (externalZoom !== undefined && externalZoom !== lastExternalZoomRef.current) {
       lastExternalZoomRef.current = externalZoom;
-      if (externalZoom !== stageScale) {
-        setStageScale(externalZoom);
-        lastNotifiedZoomRef.current = externalZoom;
-      }
+      // Use functional update to avoid dependency on stageScale
+      setStageScale(prevScale => {
+        if (externalZoom !== prevScale) {
+          lastNotifiedZoomRef.current = externalZoom;
+          return externalZoom;
+        }
+        return prevScale;
+      });
     }
-  }, [externalZoom, activeTool, stageScale]);
+  }, [externalZoom, activeTool]); // Removed stageScale from deps to prevent loops
 
   useEffect(() => {
     if (activeTool === 'pan') return; // Don't reset position when pan tool is active
@@ -329,8 +333,22 @@ export function TruckCanvas({
   const usableStartPx = mmToPxLocal(usableStartX) + horizontalOffset;
   const usableLengthPx = mmToPxLocal(usableLength);
   const usableWidthPx = mmToPxLocal(usableWidth);
+  // Calculate axle positions (support single or multiple axles)
   const frontAxlePx = mmToPxLocal(truckConfig.frontAxlePosition) + horizontalOffset;
   const rearAxlePx = mmToPxLocal(truckConfig.rearAxlePosition) + horizontalOffset;
+  
+  // Multi-axle support: if individual positions are provided, use those; otherwise use single positions
+  const frontAxlePositionsPx = truckConfig.frontAxlePositions 
+    ? truckConfig.frontAxlePositions.map(pos => mmToPxLocal(pos) + horizontalOffset)
+    : [frontAxlePx];
+  const rearAxlePositionsPx = truckConfig.rearAxlePositions
+    ? truckConfig.rearAxlePositions.map(pos => mmToPxLocal(pos) + horizontalOffset)
+    : [rearAxlePx];
+  
+  // For multi-axle configs, dimension lines reference the frontmost/rearmost axles (not group centers)
+  // This matches spec sheet conventions where FOH goes to frontmost axle, WB from frontmost to rear center
+  const frontmostAxlePx = frontAxlePositionsPx.length > 0 ? frontAxlePositionsPx[0] : frontAxlePx;
+  const rearmostAxlePx = rearAxlePositionsPx.length > 0 ? rearAxlePositionsPx[rearAxlePositionsPx.length - 1] : rearAxlePx;
 
   // Fixed cab width (standard Australian truck cab width)
   const cabWidthMm = 2400; // mm - standard cab width (fixed, doesn't change)
@@ -981,7 +999,7 @@ export function TruckCanvas({
     },
     {
       id: 'wb',
-      startX: frontAxlePx,
+      startX: frontmostAxlePx,
       endX: rearAxlePx,
       label: `WB ${truckConfig.wb}mm`,
     },
@@ -994,24 +1012,29 @@ export function TruckCanvas({
   ];
 
   // Calculate AC (Axle to Cab): front axle to back of cab
-  const ac = truckConfig.wb - truckConfig.ca;
+  // AC (Axle to Cab) - from frontmost front axle to cab end
+  // For multi-axle: use frontmost position, for single axle: use frontAxlePosition
+  const frontmostAxlePos = truckConfig.frontAxlePositions && truckConfig.frontAxlePositions.length > 0 
+    ? truckConfig.frontAxlePositions[0] 
+    : truckConfig.frontAxlePosition;
+  const ac = truckConfig.cabEnd - frontmostAxlePos;
 
   const bottomDimensionsData = [
     {
       id: 'foh',
       startX: horizontalOffset,
-      endX: frontAxlePx,
+      endX: frontmostAxlePx,
       label: `FOH ${truckConfig.foh}mm`,
     },
     {
       id: 'ac',
-      startX: frontAxlePx,
+      startX: frontmostAxlePx,
       endX: cabEndPx,
       label: `AC ${ac}mm`,
     },
     {
       id: 'roh',
-      startX: rearAxlePx,
+      startX: rearmostAxlePx,
       endX: horizontalOffset + mmToPxLocal(truckConfig.oal),
       label: `ROH ${truckConfig.roh}mm`,
     },
@@ -1150,39 +1173,51 @@ export function TruckCanvas({
           />
         )}
 
-        {/* Front axle position - dashed vertical line */}
-        <Line
-          points={[frontAxlePx, 0, frontAxlePx, canvasSize.height]}
-          stroke={COLORS.axle.line}
-          strokeWidth={1}
-          dash={[10, 5]}
-          opacity={0.6}
-        />
-        <Text
-          x={frontAxlePx + 5}
-          y={10}
-          text="Front Axle"
-          fontSize={12}
-          fill={COLORS.dimensions.text}
-          fontFamily="Arial"
-        />
+        {/* Front axle positions - dashed vertical lines (supports single or multiple axles) */}
+        {frontAxlePositionsPx.map((axlePx, index) => (
+          <Group key={`front-axle-${index}`}>
+            <Line
+              points={[axlePx, 0, axlePx, canvasSize.height]}
+              stroke={COLORS.axle.line}
+              strokeWidth={1}
+              dash={[10, 5]}
+              opacity={0.6}
+            />
+            {index === 0 && (
+              <Text
+                x={axlePx + 5}
+                y={10}
+                text={frontAxlePositionsPx.length > 1 ? `Front Axles (${frontAxlePositionsPx.length})` : "Front Axle"}
+                fontSize={12}
+                fill={COLORS.dimensions.text}
+                fontFamily="Arial"
+              />
+            )}
+          </Group>
+        ))}
 
-        {/* Rear axle position - dashed vertical line */}
-        <Line
-          points={[rearAxlePx, 0, rearAxlePx, canvasSize.height]}
-          stroke={COLORS.axle.line}
-          strokeWidth={1}
-          dash={[10, 5]}
-          opacity={0.6}
-        />
-        <Text
-          x={rearAxlePx + 5}
-          y={10}
-          text="Rear Axle"
-          fontSize={12}
-          fill={COLORS.dimensions.text}
-          fontFamily="Arial"
-        />
+        {/* Rear axle positions - dashed vertical lines (supports single or multiple axles) */}
+        {rearAxlePositionsPx.map((axlePx, index) => (
+          <Group key={`rear-axle-${index}`}>
+            <Line
+              points={[axlePx, 0, axlePx, canvasSize.height]}
+              stroke={COLORS.axle.line}
+              strokeWidth={1}
+              dash={[10, 5]}
+              opacity={0.6}
+            />
+            {index === 0 && (
+              <Text
+                x={axlePx + 5}
+                y={10}
+                text={rearAxlePositionsPx.length > 1 ? `Rear Axles (${rearAxlePositionsPx.length})` : "Rear Axle"}
+                fontSize={12}
+                fill={COLORS.dimensions.text}
+                fontFamily="Arial"
+              />
+            )}
+          </Group>
+        ))}
 
         {/* CAD-Style Dimension Lines - Stacked from top to bottom with proper spacing */}
         {/* Level 1: OAL (Overall Length) - Top level */}
@@ -1196,9 +1231,10 @@ export function TruckCanvas({
         })()}
 
         {/* Level 2: Major dimensions - WB (Wheelbase) and Body Length */}
-        {/* WB - positioned between axles */}
+        {/* WB - positioned from frontmost front axle to rear axle group center (matches spec sheet) */}
         {(() => {
-          const startX = frontAxlePx;
+          // Wheelbase per spec sheet: frontmost front axle to rear axle group center
+          const startX = frontmostAxlePx;
           const endX = rearAxlePx;
           const label = `WB ${truckConfig.wb}mm`;
           const spanWidth = Math.abs(endX - startX);
@@ -1217,27 +1253,27 @@ export function TruckCanvas({
         })()}
 
         {/* Level 3: Detail dimensions - FOH, AC, ROH, CA, Cab-Body spacing */}
-        {/* FOH - Front Overhang */}
+        {/* FOH - Front Overhang (to frontmost axle) */}
         {(() => {
           const startX = horizontalOffset;
-          const endX = frontAxlePx;
+          const endX = frontmostAxlePx;
           const label = `FOH ${truckConfig.foh}mm`;
           const spanWidth = Math.abs(endX - startX);
           const badgeWidth = getDimensionBadgeWidth(label);
           return drawDimensionLine(startX, endX, bottomDimensionPositions.foh, label, true, 15, badgeWidth > spanWidth);
         })()}
-        {/* AC - Axle to Cab */}
+        {/* AC - Axle to Cab (from frontmost axle) */}
         {(() => {
-          const startX = frontAxlePx;
+          const startX = frontmostAxlePx;
           const endX = cabEndPx;
           const label = `AC ${ac}mm`;
           const spanWidth = Math.abs(endX - startX);
           const badgeWidth = getDimensionBadgeWidth(label);
           return drawDimensionLine(startX, endX, bottomDimensionPositions.ac, label, true, 15, badgeWidth > spanWidth);
         })()}
-        {/* ROH - Rear Overhang - offset slightly to avoid overlap */}
+        {/* ROH - Rear Overhang (from rearmost rear axle) - offset slightly to avoid overlap */}
         {(() => {
-          const startX = rearAxlePx;
+          const startX = rearmostAxlePx;
           const endX = horizontalOffset + mmToPxLocal(truckConfig.oal);
           const label = `ROH ${truckConfig.roh}mm`;
           const spanWidth = Math.abs(endX - startX);

@@ -7,7 +7,8 @@ import { DashboardMenu } from './dashboard-menu';
 import { ToolsBar } from './tools-bar';
 import { OrientationWarning } from './orientation-warning';
 import { TruckCanvas } from './truck-canvas';
-import { ISUZU_FVR_170_300, getEffectiveLimits, calculateGML } from '@/lib/load-calculator/truck-config';
+import { getEffectiveLimits, calculateGML } from '@/lib/load-calculator/truck-config';
+import type { TruckConfig } from '@/lib/load-calculator/truck-config';
 import { BodyConfigPopover } from './popovers/body-config-popover';
 import { FixedCompliancePopover } from './popovers/fixed-compliance-popover';
 import { PalletEditPopover } from './popovers/pallet-edit-popover';
@@ -25,7 +26,11 @@ import { useCanvasStore } from '../hooks/use-canvas-store';
 import type { Load } from '../hooks/use-loads-store';
 import { optimisePalletFill } from '../lib/pallet-fill-optimizer';
 
-export function LoadCalculator() {
+interface LoadCalculatorProps {
+  truckConfig: TruckConfig;
+}
+
+export function LoadCalculator({ truckConfig }: LoadCalculatorProps) {
   // State for focus field in body config
   const [bodyConfigFocusField, setBodyConfigFocusField] = useState<'fromBackOfCab' | 'bodyLength' | 'bodyWidth' | undefined>();
 
@@ -127,34 +132,34 @@ export function LoadCalculator() {
   const resetView = useCanvasStore((state) => state.resetView);
 
   // Derived values
-  const bodyStartPosition = ISUZU_FVR_170_300.bedStart + fromBackOfCab; // Where body actually starts
-  const maxAvailableBodyLength = ISUZU_FVR_170_300.maxBodyLength - fromBackOfCab; // Reduced by spacing
+  const bodyStartPosition = truckConfig.bedStart + fromBackOfCab; // Where body actually starts
+  const maxAvailableBodyLength = truckConfig.maxBodyLength - fromBackOfCab; // Reduced by spacing
 
   // Get effective limits (minimum of manufacturer vs GML regulatory limits)
-  const effectiveLimits = useMemo(() => getEffectiveLimits(ISUZU_FVR_170_300), []);
+  const effectiveLimits = useMemo(() => getEffectiveLimits(truckConfig), [truckConfig]);
 
   // Convert TruckConfig (mm) to TruckProfile (metres) for physics calculations
   const truckProfile: TruckProfile = useMemo(() => ({
     id: 'default',
-    name: ISUZU_FVR_170_300.model,
+    name: truckConfig.model,
     body_type: BodyType.TRAY,
     body_length: bodyDimensions.length / 1000, // mm to metres
     body_width: bodyDimensions.width / 1000, // mm to metres
-    wheelbase: ISUZU_FVR_170_300.wb / 1000, // mm to metres
+    wheelbase: truckConfig.wb / 1000, // mm to metres
     tare_weight: weighBridgeReadings.frontAxle + weighBridgeReadings.rearAxle,
     front_tare_weight: weighBridgeReadings.frontAxle,
     rear_tare_weight: weighBridgeReadings.rearAxle,
     gvm: effectiveLimits.gvm, // Use effective limit (manufacturer vs GML)
     front_axle_limit: effectiveLimits.frontAxleLimit, // Use effective limit (manufacturer vs GML)
     rear_axle_limit: effectiveLimits.rearAxleLimit, // Use effective limit (manufacturer vs GML)
-    front_overhang: ISUZU_FVR_170_300.foh / 1000, // mm to metres
-    cab_to_axle: ISUZU_FVR_170_300.ca / 1000, // mm to metres
-    rear_overhang: ISUZU_FVR_170_300.roh / 1000, // mm to metres
+    front_overhang: truckConfig.foh / 1000, // mm to metres
+    cab_to_axle: truckConfig.ca / 1000, // mm to metres
+    rear_overhang: truckConfig.roh / 1000, // mm to metres
     suspension_type: SuspensionType.STEEL,
     wall_thickness_front: wallThickness.front / 1000, // mm to metres
     wall_thickness_rear: wallThickness.rear / 1000, // mm to metres
     wall_thickness_sides: wallThickness.sides / 1000, // mm to metres
-  }), [bodyDimensions, weighBridgeReadings, wallThickness, effectiveLimits]);
+  }), [bodyDimensions, weighBridgeReadings, wallThickness, effectiveLimits, truckConfig]);
 
   // Get usable dimensions accounting for wall thickness
   const usableDimensions = useMemo(() => {
@@ -182,9 +187,10 @@ export function LoadCalculator() {
   }, [loads, bodyStartPosition]);
 
   // Calculate weight distribution using existing physics.ts
+  // Pass truckConfig for multi-axle weight distribution
   const weightDistribution = useMemo(() => {
-    return calculateWeightDistribution(truckProfile, palletsForPhysics);
-  }, [truckProfile, palletsForPhysics]);
+    return calculateWeightDistribution(truckProfile, palletsForPhysics, truckConfig);
+  }, [truckProfile, palletsForPhysics, truckConfig]);
 
   // Handle drag end for popovers
   // Note: DraggablePopover handles its own position updates internally
@@ -261,14 +267,14 @@ export function LoadCalculator() {
       switch (limitType) {
         case 'mfg':
           optimizationLimits = {
-            gvm: ISUZU_FVR_170_300.gvm,
-            frontAxleLimit: ISUZU_FVR_170_300.frontAxleLimit,
-            rearAxleLimit: ISUZU_FVR_170_300.rearAxleLimit,
+            gvm: truckConfig.gvm,
+            frontAxleLimit: truckConfig.frontAxleLimit,
+            rearAxleLimit: truckConfig.rearAxleLimit,
           };
           break;
         case 'gml':
-          const gmlLimits = ISUZU_FVR_170_300.gml || ISUZU_FVR_170_300.vehicleClassification 
-            ? calculateGML(ISUZU_FVR_170_300.vehicleClassification!)
+          const gmlLimits = truckConfig.gml || truckConfig.vehicleClassification 
+            ? calculateGML(truckConfig.vehicleClassification!)
             : null;
           if (!gmlLimits) {
             throw new Error('GML limits not available for this vehicle configuration.');
@@ -1115,7 +1121,7 @@ export function LoadCalculator() {
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <div className="flex-1 relative overflow-hidden bg-gray-900" style={{ marginLeft: '160px' }}>
             <TruckCanvas
-                      truckConfig={ISUZU_FVR_170_300}
+                      truckConfig={truckConfig}
                       bodyDimensions={bodyDimensions}
                       fromBackOfCab={fromBackOfCab}
                       wallThickness={wallThickness}
@@ -1240,7 +1246,7 @@ export function LoadCalculator() {
             {/* Fixed Compliance Summary in top-right corner */}
             {popovers.compliance.visible && (
               <FixedCompliancePopover
-                truckModel={ISUZU_FVR_170_300.model}
+                truckModel={truckConfig.model}
                 frontAxleTotal={weightDistribution.front_axle_weight}
                 rearAxleTotal={weightDistribution.rear_axle_weight}
                 gvmTotal={weightDistribution.total_weight}
@@ -1248,18 +1254,18 @@ export function LoadCalculator() {
                 rearAxleLimit={effectiveLimits.rearAxleLimit}
                 gvmLimit={effectiveLimits.gvm}
                 // Manufacturer limits for comparison
-                manufacturerFrontAxleLimit={ISUZU_FVR_170_300.frontAxleLimit}
-                manufacturerRearAxleLimit={ISUZU_FVR_170_300.rearAxleLimit}
-                manufacturerGvm={ISUZU_FVR_170_300.gvm}
+                manufacturerFrontAxleLimit={truckConfig.frontAxleLimit}
+                manufacturerRearAxleLimit={truckConfig.rearAxleLimit}
+                manufacturerGvm={truckConfig.gvm}
                 // GML information
-                gmlConfig={ISUZU_FVR_170_300.gml}
-                vehicleClassification={ISUZU_FVR_170_300.vehicleClassification}
+                gmlConfig={truckConfig.gml}
+                vehicleClassification={truckConfig.vehicleClassification}
                 frontAxle={weighBridgeReadings.frontAxle}
                 rearAxle={weighBridgeReadings.rearAxle}
                 onFrontAxleChange={(value) => setWeighBridgeReadings({ ...weighBridgeReadings, frontAxle: value })}
                 onRearAxleChange={(value) => setWeighBridgeReadings({ ...weighBridgeReadings, rearAxle: value })}
-                referenceFront={ISUZU_FVR_170_300.cabChassisFront}
-                referenceRear={ISUZU_FVR_170_300.cabChassisRear}
+                referenceFront={truckConfig.cabChassisFront}
+                referenceRear={truckConfig.cabChassisRear}
               />
             )}
 

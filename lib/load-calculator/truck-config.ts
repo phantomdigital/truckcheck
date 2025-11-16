@@ -123,12 +123,16 @@ export interface TruckConfig {
   ca: number;               // Cab to rear axle (Effective Axle - EA)
   
   // Calculated values for canvas
-  frontAxlePosition: number;  // FOH
-  rearAxlePosition: number;   // FOH + WB
+  frontAxlePosition: number;  // FOH (or center of front axle group for multi-axle)
+  rearAxlePosition: number;   // FOH + WB (or center of rear axle group for multi-axle)
   cabEnd: number;              // FOH + WB - CA (where cab ends)
   bedStart: number;            // Same as cabEnd - this is where the body/tray starts
   maxBodyLength: number;       // OAL - bedStart (maximum available body length)
   defaultBodyWidth: number;    // Standard body width (user can adjust this)
+  
+  // Multi-axle support (optional - for twin steer, tandem, etc.)
+  frontAxlePositions?: number[];  // Individual front axle positions (mm from front) - if multiple front axles
+  rearAxlePositions?: number[];   // Individual rear axle positions (mm from front) - if multiple rear axles
 }
 
 /**
@@ -564,5 +568,129 @@ export const ISUZU_FVR_170_300: TruckConfig = {
   bedStart: 2066,                       // Same as cabEnd - this is where the body/tray starts (default, user can add gap)
   maxBodyLength: 5339,                  // OAL - bedStart = 7405 - 2066 (maximum available body length)
   defaultBodyWidth: 2400,               // Standard body width (user can adjust this)
+};
+
+/**
+ * Fuso Shogun FS76 8x4 - Twin steer heavy-duty truck configuration
+ * All dimensions in millimeters (mm)
+ * 8x4 configuration: Twin steer front axle group + Tandem rear axle group
+ * 
+ * GML Classification:
+ * - 4-axle vehicle (twin steer + tandem rear with dual tyres)
+ * - Twin steer axle group with load-sharing suspension
+ * - Not a bus, not B-double, not road train
+ * - Heavy-duty motor vehicle
+ */
+export const FUSO_SHOGUN_FS76: TruckConfig = {
+  model: 'Shogun FS76 8x4',
+  manufacturer: 'Fuso',
+  
+  // Weight ratings (kg) - MANUFACTURER LIMITS
+  gvm: 30800,              // Gross Vehicle Mass (from spec sheet)
+  gcm: 53000,              // Gross Combination Mass
+  frontAxleLimit: 14200,   // Front twin steer axle group rating (from spec sheet)
+  rearAxleLimit: 21600,    // Rear tandem axle group rating (from spec sheet)
+  
+  // Emissions standard
+  isEuro6: false,          // Not Euro VI (ADR 80/04) compliant (older model)
+  
+  // GML (General Mass Limits) regulatory overrides
+  // For Fuso Shogun 8x4 (twin steer + tandem rear):
+  // - GVM = minimum of Table 1 (42.5t) and sum of axle limits (11.0t + 16.5t = 27.5t)
+  // - Front axle (twin steer with load-sharing): 11.0t (11000kg) - GML is MORE RESTRICTIVE than manufacturer (14.2t)
+  // - Rear axle (tandem with dual tyres): 16.5t (16500kg) - GML is MORE RESTRICTIVE than manufacturer (21.6t)
+  gml: {
+    gvm: 27500,            // 27.5t - minimum of Table 1 (42.5t) and sum of axles (11.0t + 16.5t)
+    gvmTable1: 42500,      // Table 1 limit for standard vehicle (not applicable as sum of axles is more restrictive)
+    frontAxleLimit: 11000, // 11.0t - Twin steer with load-sharing suspension - MORE RESTRICTIVE than manufacturer (14.2t)
+    rearAxleLimit: 16500,  // 16.5t - Tandem with dual tyres - MORE RESTRICTIVE than manufacturer (21.6t)
+  },
+  
+  // Vehicle classification for GML calculation
+  vehicleClassification: {
+    frontAxleType: 'twinsteer',
+    rearAxleType: 'tandem',
+    frontTyreType: 'dual',     // Twin steer typically has dual tyres on each axle
+    rearTyreType: 'dual',      // Tandem with dual tyres
+    hasLoadSharingSuspension: true, // Modern twin steer typically has load-sharing suspension
+  },
+  
+  // Factory cab chassis weights (kg) - FOR REFERENCE ONLY
+  // Users will input their ACTUAL weigh bridge readings instead
+  // Estimated typical tare weights for 8x4 cab chassis
+  cabChassisFront: 6500,   // Front twin steer axle group tare weight (estimated)
+  cabChassisRear: 4500,    // Rear tandem axle group tare weight (estimated)
+  cabChassisTotal: 11000,  // Total tare weight (estimated for 8x4 cab chassis)
+  
+  // Dimensions (mm) - From Fuso Shogun FS76 specification sheet and TruckScience diagram
+  // TruckScience diagram shows actual loaded configuration with body
+  // Key differences from base spec sheet:
+  // - OAL: 10,720mm (TruckScience) vs 10,140mm (base spec) - includes body overhang
+  // - ROH: 3,200mm (TruckScience) vs 2,900mm (base spec) - body extends beyond frame
+  // - Front axle spacing: 1,860mm (TruckScience) vs estimated 1,300mm
+  // - Distance from front of cab to Axle 1: 930mm (TruckScience)
+  // 
+  // Base spec sheet dimensions:
+  // D - Wheelbase: 5870mm (A B configuration)
+  // B - Extreme Axle Spacing: 6530mm (A B configuration)
+  // F - Rear Axle Spacing: 1320mm
+  // C - Front Overhang: 1370mm
+  // G - Front Axle to Rear of Cab: 700mm
+  // I - Rearmost Item Behind Cab to Rear Axle: 5025mm (A B)
+  // J - Frame, Rear Axle to End: 2900mm (A B)
+  //
+  // Using TruckScience actual measurements (more accurate for loaded configuration):
+  wb: 5870,                // Wheelbase (D) - matches spec sheet
+  oal: 10720,              // Overall length - TruckScience shows 10,720mm (with body)
+  foh: 1370,               // Front overhang (C) - matches spec sheet
+  roh: 3200,               // Rear overhang - TruckScience shows 3,200mm (body extends beyond frame)
+  ca: 5170,                // Cab to rear axle - distance from front of BODY (back of cab) to rear axle group center
+                          // Calculated: rear axle group center (7240mm) - bedStart (2070mm) = 5170mm
+                          // NOTE: Spec sheet "I" (5025mm) is measured to cab end, not body front!
+  
+  // Calculated values for canvas
+  // Using TruckScience diagram measurements (more accurate):
+  // - Front axle spacing: 1,860mm (TruckScience shows distance between Axle 1 and Axle 2)
+  // - Distance from front of cab to Axle 1: 930mm
+  // - AC (Front Axle to Cab Front): 700mm
+  // - So: front of cab = 1370 - 700 = 670mm from front of truck
+  // - And: Axle 1 = 670 + 930 = 1600mm from front of truck
+  //
+  // Wait, let me recalculate based on TruckScience:
+  // - FOH = 1,370mm (front of truck to frontmost axle)
+  // - Distance from front of cab to Axle 1 = 930mm
+  // - AC = 700mm (front axle to cab front)
+  // - If AC is measured from frontmost axle: front of cab = 1370 - 700 = 670mm
+  // - But TruckScience shows 930mm from front of cab to Axle 1
+  // - This suggests: Axle 1 position = 670 + 930 = 1600mm from front
+  //
+  // Actually, looking at TruckScience more carefully:
+  // - Front axle spacing (Axle 1 to Axle 2) = 1,860mm
+  // - If Axle 1 is at 1,370mm (FOH), then Axle 2 = 1,370 + 1,860 = 3,230mm
+  // - Front axle group center = (1,370 + 3,230) / 2 = 2,300mm
+  //
+  // Rear axle calculations (from spec sheet, matches TruckScience):
+  // Rear axle group center = FOH + WB = 1370 + 5870 = 7240mm
+  // Rear tandem axles (spaced 1320mm, centered at 7240mm):
+  //   Rear axle 1: 7240 - 660 = 6580mm
+  //   Rear axle 2: 7240 + 660 = 7900mm (rearmost)
+  //
+  // But wait - if frontmost axle is at 1370mm and rearmost is at 7900mm:
+  // Extreme spacing = 7900 - 1370 = 6530mm ✓ (matches spec sheet)
+  //
+  // Using TruckScience front axle spacing of 1,860mm:
+  frontAxlePosition: 2300,              // Front axle group center: (1370 + 3230) / 2 = 2300mm
+  rearAxlePosition: 7240,               // FOH + WB = 1370 + 5870 - center of rear tandem axle group
+  cabEnd: 2070,                         // FOH + G = 1370 + 700 (where cab ends)
+  bedStart: 2070,                       // Same as cabEnd - this is where the body/tray starts (default, user can add gap)
+  maxBodyLength: 8650,                  // OAL - bedStart = 10720 - 2070 (maximum available body length with TruckScience OAL)
+  defaultBodyWidth: 2500,               // Standard body width for heavy-duty (user can adjust this)
+  
+  // Multi-axle positions (8x4: twin steer front + tandem rear)
+  // Using TruckScience measurements:
+  // Front twin steer: spacing 1,860mm (from TruckScience diagram)
+  frontAxlePositions: [1370, 3230],      // Front axle 1: 1370mm (frontmost, FOH), Front axle 2: 3230mm (1860mm spacing)
+  // Tandem rear: spaced 1320mm apart (F from spec sheet, matches TruckScience), centered at 7240mm
+  rearAxlePositions: [6580, 7900],     // Rear axle 1: 6580mm, Rear axle 2: 7900mm (rearmost)
 };
 

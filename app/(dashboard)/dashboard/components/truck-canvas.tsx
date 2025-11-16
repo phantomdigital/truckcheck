@@ -1358,8 +1358,19 @@ export function TruckCanvas({
 
             // Calculate deltas in PIXELS first (more accurate), then convert to mm
             // This delta accounts for any constraints applied by dragBoundFunc (Shift/Alt locks)
-            const deltaXPx = newWorldX - initialPixelX;
-            const deltaYPx = newWorldY - initialPixelY;
+            let deltaXPx = newWorldX - initialPixelX;
+            let deltaYPx = newWorldY - initialPixelY;
+
+            // If Shift (horizontal lock) is active, force vertical delta to zero
+            if (shiftKeyPressedRef.current) {
+              deltaYPx = 0;
+            }
+
+            // If Alt (vertical lock) is active, force horizontal delta to zero
+            if (altKeyPressedRef.current) {
+              deltaXPx = 0;
+            }
+
             const deltaXMm = pxToMmLocal(deltaXPx);
             const deltaYMm = pxToMmLocal(deltaYPx);
 

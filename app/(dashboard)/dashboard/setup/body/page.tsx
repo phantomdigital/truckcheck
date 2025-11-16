@@ -1,13 +1,58 @@
 import type { Metadata } from "next"
 import { BodyTypeSelectionClient } from "./body-type-selection-client"
+import { Suspense } from "react"
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 export const metadata: Metadata = {
   title: "Select Body Type | Load Calculator Setup",
   description: "Choose your truck body type: pantech, refrigerated, curtainsider, or flatbed.",
 }
 
+// Loading skeleton for body type selection
+function BodyTypeSelectionSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-12"></TableHead>
+            <TableHead>Body Type</TableHead>
+            <TableHead>Wall Thickness</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <TableRow key={i} className="animate-pulse">
+              <TableCell>
+                <div className="w-4 h-4 bg-muted/50 rounded" />
+              </TableCell>
+              <TableCell>
+                <div className="h-4 w-24 bg-muted/50 rounded" />
+              </TableCell>
+              <TableCell>
+                <div className="h-4 w-16 bg-muted/50 rounded" />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      
+      <div className="flex justify-end">
+        <div className="h-10 w-32 bg-muted/50 rounded animate-pulse" />
+      </div>
+    </div>
+  )
+}
+
 /**
- * Body Type Selection Page - Step 2 of setup
+ * Body Type Selection Page - Step 3 of setup
  * Server Component
  */
 export default function BodyTypeSelectionPage() {
@@ -31,7 +76,9 @@ export default function BodyTypeSelectionPage() {
           </div>
 
           {/* Body Type Selection */}
-          <BodyTypeSelectionClient />
+          <Suspense fallback={<BodyTypeSelectionSkeleton />}>
+            <BodyTypeSelectionClient />
+          </Suspense>
         </div>
       </div>
     </div>

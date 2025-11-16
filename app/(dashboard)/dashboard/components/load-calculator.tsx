@@ -346,6 +346,18 @@ export function LoadCalculator() {
     selectedPalletIdsRef.current = selectedPalletIds;
   }, [selectedPalletIds]);
 
+  // Ensure pallet edit popover is visible whenever there is a selection (single or multiple)
+  useEffect(() => {
+    if (selectedPalletIds.length > 0) {
+      setPalletEditPopover({
+        visible: true,
+        palletId: selectedPalletIds.length === 1 ? selectedPalletIds[0] : null,
+      });
+    } else {
+      setPalletEditPopover({ visible: false, palletId: null });
+    }
+  }, [selectedPalletIds, setPalletEditPopover]);
+
   useEffect(() => {
     loadsRef.current = loads;
   }, [loads]);

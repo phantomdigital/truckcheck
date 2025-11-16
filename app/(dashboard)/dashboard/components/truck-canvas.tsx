@@ -170,6 +170,7 @@ export function TruckCanvas({
   const latestPointerRef = useRef<{ x: number; y: number } | null>(null);
   const selectionStartRef = useRef<{ x: number; y: number } | null>(null);
   const selectionEndRef = useRef<{ x: number; y: number } | null>(null);
+  const selectionCompletedRef = useRef(false);
   
   // Helper to convert screen coordinates to world coordinates
   const screenToWorld = useCallback((screenX: number, screenY: number) => {
@@ -343,6 +344,12 @@ export function TruckCanvas({
   const usableTopY = bodyTopY + mmToPxLocal(wallThickness.sides);
 
   const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    // If a drag-selection just completed, skip this click to prevent immediate deselect
+    if (selectionCompletedRef.current) {
+      selectionCompletedRef.current = false;
+      return;
+    }
+
     // If clicking on stage (not a pallet), deselect
     if (e.target === e.target.getStage()) {
       onSelectPallet?.(null);
@@ -616,6 +623,8 @@ export function TruckCanvas({
         // Select the pallets directly using the batch function
         if (selectedPalletIds.length > 0) {
           onSelectPallets(selectedPalletIds);
+          // Prevent the following click event from clearing the selection we just made
+          selectionCompletedRef.current = true;
         }
       }
       

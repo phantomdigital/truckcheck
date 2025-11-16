@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DraggablePopover } from './draggable-popover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { Select } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 // Standard AU pallet sizes (mm)
 const STANDARD_PALLET_SIZES = {
@@ -51,6 +52,7 @@ export function AddPalletPopover({
     }
   }, [palletSize]);
 
+
   const handleAdd = () => {
     const length = isCustom ? customLength : STANDARD_PALLET_SIZES[palletSize].length;
     const width = isCustom ? customWidth : STANDARD_PALLET_SIZES[palletSize].width;
@@ -69,6 +71,7 @@ export function AddPalletPopover({
 
   const currentLength = isCustom ? customLength : STANDARD_PALLET_SIZES[palletSize].length;
   const currentWidth = isCustom ? customWidth : STANDARD_PALLET_SIZES[palletSize].width;
+
 
   return (
     <DraggablePopover
@@ -171,6 +174,7 @@ export function AddPalletPopover({
             Add Pallet
           </Button>
         </div>
+
       </div>
     </DraggablePopover>
   );

@@ -7,12 +7,13 @@ import { DashboardMenu } from './dashboard-menu';
 import { ToolsBar } from './tools-bar';
 import { OrientationWarning } from './orientation-warning';
 import { TruckCanvas } from './truck-canvas';
-import { ISUZU_FVR_170_300, getEffectiveLimits } from '@/lib/load-calculator/truck-config';
+import { ISUZU_FVR_170_300, getEffectiveLimits, calculateGML } from '@/lib/load-calculator/truck-config';
 import { BodyConfigPopover } from './popovers/body-config-popover';
 import { FixedCompliancePopover } from './popovers/fixed-compliance-popover';
 import { PalletEditPopover } from './popovers/pallet-edit-popover';
 import { AddPalletPopover } from './popovers/add-pallet-popover';
 import { AlignPopover } from './popovers/align-popover';
+import { AutoFillPopover } from './popovers/auto-fill-popover';
 import { calculateWeightDistribution, getUsableDimensions } from '@/lib/load-calculator/physics';
 import type { TruckProfile, Pallet } from '@/lib/load-calculator/types';
 import { BodyType, SuspensionType } from '@/lib/load-calculator/types';
@@ -22,6 +23,7 @@ import { useTruckConfigStore } from '../hooks/use-truck-config-store';
 import { useUIStore } from '../hooks/use-ui-store';
 import { useCanvasStore } from '../hooks/use-canvas-store';
 import type { Load } from '../hooks/use-loads-store';
+import { optimisePalletFill } from '../lib/pallet-fill-optimizer';
 
 export function LoadCalculator() {
   // State for focus field in body config
@@ -113,6 +115,8 @@ export function LoadCalculator() {
   const setAddPalletPopover = useUIStore((state) => state.setAddPalletPopover);
   const alignPopover = useUIStore((state) => state.alignPopover);
   const setAlignPopover = useUIStore((state) => state.setAlignPopover);
+  const autoFillPopover = useUIStore((state) => state.autoFillPopover);
+  const setAutoFillPopover = useUIStore((state) => state.setAutoFillPopover);
 
   const activeTool = useCanvasStore((state) => state.activeTool);
   const setActiveTool = useCanvasStore((state) => state.setActiveTool);
@@ -203,6 +207,137 @@ export function LoadCalculator() {
     };
     addLoad(newPallet);
   }, [bodyStartPosition, usableDimensions, addLoad]);
+
+  const handleAutoFillPallets = useCallback(async (config: {
+    length: number;
+    width: number;
+    mode: 'uniform' | 'custom';
+    uniformWeight?: number;
+    customWeights?: number[];
+    maxPallets?: number;
+    replaceExisting: boolean;
+    limitType: 'mfg' | 'gml' | 'effective';
+  }) => {
+    const { length, width, mode, uniformWeight, customWeights = [], maxPallets, replaceExisting, limitType } = config;
+
+    const execute = async () => {
+      if (length <= 0 || width <= 0) {
+        throw new Error('Pallet dimensions must be greater than zero.');
+      }
+
+      const usableLength = usableDimensions.usableLength;
+      const usableWidth = usableDimensions.usableWidth;
+
+      const columns = Math.floor(usableLength / length);
+      const rows = Math.floor(usableWidth / width);
+
+      if (columns <= 0 || rows <= 0) {
+        throw new Error('Pallet dimensions are larger than the usable body area.');
+      }
+
+      const totalSlots = columns * rows;
+      const slotLimit = Math.min(totalSlots, maxPallets && maxPallets > 0 ? maxPallets : totalSlots);
+
+      if (slotLimit === 0) {
+        throw new Error('No available slots for these pallet dimensions.');
+      }
+
+      let weights: number[] = [];
+      if (mode === 'uniform') {
+        if (!uniformWeight || uniformWeight <= 0) {
+          throw new Error('Please enter a valid weight per pallet.');
+        }
+        weights = Array(slotLimit).fill(uniformWeight);
+      } else {
+        const filtered = customWeights.filter((value) => value > 0);
+        if (filtered.length === 0) {
+          throw new Error('Enter at least one valid pallet weight.');
+        }
+        weights = filtered.slice(0, slotLimit);
+      }
+
+      // Create truck profile with selected limits
+      let optimizationLimits;
+      switch (limitType) {
+        case 'mfg':
+          optimizationLimits = {
+            gvm: ISUZU_FVR_170_300.gvm,
+            frontAxleLimit: ISUZU_FVR_170_300.frontAxleLimit,
+            rearAxleLimit: ISUZU_FVR_170_300.rearAxleLimit,
+          };
+          break;
+        case 'gml':
+          const gmlLimits = ISUZU_FVR_170_300.gml || ISUZU_FVR_170_300.vehicleClassification 
+            ? calculateGML(ISUZU_FVR_170_300.vehicleClassification!)
+            : null;
+          if (!gmlLimits) {
+            throw new Error('GML limits not available for this vehicle configuration.');
+          }
+          optimizationLimits = {
+            gvm: gmlLimits.gvm,
+            frontAxleLimit: gmlLimits.effectiveFrontAxleLimit ?? gmlLimits.frontAxleLimit,
+            rearAxleLimit: gmlLimits.effectiveRearAxleLimit ?? gmlLimits.rearAxleLimit,
+          };
+          break;
+        case 'effective':
+        default:
+          optimizationLimits = effectiveLimits;
+          break;
+      }
+
+      const optimizationTruckProfile = {
+        ...truckProfile,
+        gvm: optimizationLimits.gvm,
+        front_axle_limit: optimizationLimits.frontAxleLimit,
+        rear_axle_limit: optimizationLimits.rearAxleLimit,
+      };
+
+      const { generatedLoads, unplacedWeights } = optimisePalletFill({
+        truckProfile: optimizationTruckProfile,
+        bodyStartPosition,
+        usableDimensions,
+        palletLength: length,
+        palletWidth: width,
+        weights,
+        existingLoads: loads,
+        replaceExisting,
+        maxPallets: slotLimit,
+      });
+
+      if (generatedLoads.length === 0) {
+        throw new Error('Unable to place pallets without exceeding axle limits or usable space.');
+      }
+
+      const nextLoads = replaceExisting ? generatedLoads : [...loads, ...generatedLoads];
+      setLoads(nextLoads);
+
+      setTimeout(() => {
+        selectPallets(generatedLoads.map((load) => load.id));
+      }, 0);
+
+      const limitTypeLabel = limitType === 'mfg' ? 'MFG' : limitType === 'gml' ? 'GML' : 'effective';
+      const placedMessage = `Optimised ${generatedLoads.length} pallet${generatedLoads.length === 1 ? '' : 's'} using ${limitTypeLabel} limits.`;
+      const unplacedMessage =
+        unplacedWeights.length > 0
+          ? ` ${unplacedWeights.length} pallet${unplacedWeights.length === 1 ? '' : 's'} could not be placed due to axle or space constraints.`
+          : '';
+
+      return {
+        success: true,
+        message: `${placedMessage}${unplacedMessage}`.trim(),
+      };
+    };
+
+    const promise = execute();
+
+    toast.promise(promise, {
+      loading: 'Optimising pallet layout…',
+      success: (result) => result.message ?? 'Optimised pallet layout.',
+      error: (error) => (error as Error).message ?? 'Failed to optimise pallet layout.',
+    });
+
+    await promise;
+  }, [bodyStartPosition, usableDimensions, loads, setLoads, selectPallets, truckProfile]);
 
   // Smart pallet duplication: find a free position next to the original
   const handleDuplicatePallet = useCallback((id: string) => {
@@ -904,10 +1039,7 @@ export function LoadCalculator() {
         {/* Left Dashboard Menu */}
         <DashboardMenu
           onOpenTrucks={() => {
-            // Weigh bridge is now in compliance popover - no action needed
-          }}
-          onOpenWeighBridge={() => {
-            // Weigh bridge is now in compliance popover - no action needed
+            // Truck selection functionality - TODO: implement
           }}
           onOpenBodyConfig={() => {
             setPopoverVisible('bodyConfig', !popovers.bodyConfig.visible);
@@ -924,10 +1056,10 @@ export function LoadCalculator() {
           }}
           palletCount={loads.length}
           popoverStates={{
-            weighBridge: false, // Always false since it's now in compliance
             bodyConfig: popovers.bodyConfig.visible,
             compliance: popovers.compliance.visible,
             addPallet: addPalletPopover.visible,
+            autoFillBody: autoFillPopover.visible,
           }}
           onUndo={undoLoads}
           onRedo={redoLoads}
@@ -964,6 +1096,9 @@ export function LoadCalculator() {
           onSettings={() => {
             // TODO: Implement settings functionality
             console.log('Settings');
+          }}
+          onAutoFillBody={() => {
+            setAutoFillPopover({ visible: true });
           }}
         />
 
@@ -1051,9 +1186,9 @@ export function LoadCalculator() {
                 onBodyWidthChange={setBodyWidth}
                 wallThickness={wallThickness}
                 onWallThicknessChange={setWallThickness}
-                onAddPallet={() => {
-                  setAddPalletPopover({ visible: true });
-                }}
+          onAddPallet={() => {
+            setAddPalletPopover({ visible: true });
+          }}
                 focusField={bodyConfigFocusField}
               />
             )}
@@ -1065,6 +1200,18 @@ export function LoadCalculator() {
                 onPositionChange={(pos) => setAddPalletPopover(pos)}
                 onClose={() => setAddPalletPopover({ visible: false })}
                 onAddPallet={handleAddPallet}
+              />
+            )}
+
+            {/* Auto Fill Body Popover */}
+            {autoFillPopover.visible && (
+              <AutoFillPopover
+                position={{ x: autoFillPopover.x, y: autoFillPopover.y }}
+                onPositionChange={(pos) => setAutoFillPopover({ ...pos })}
+                onClose={() => setAutoFillPopover({ visible: false })}
+                collapsed={autoFillPopover.collapsed}
+                onCollapsedChange={(collapsed) => setAutoFillPopover({ collapsed })}
+                onAutoFillBody={handleAutoFillPallets}
               />
             )}
 

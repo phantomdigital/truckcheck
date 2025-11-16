@@ -39,6 +39,13 @@ interface UIState {
     collapsed: boolean;
   };
 
+  autoFillPopover: {
+    visible: boolean;
+    x: number;
+    y: number;
+    collapsed: boolean;
+  };
+
   // Selection area for drag-to-select
   selectionArea: {
     active: boolean;
@@ -55,6 +62,7 @@ interface UIState {
   setPalletEditPopover: (state: Partial<UIState['palletEditPopover']>) => void;
   setAddPalletPopover: (state: Partial<UIState['addPalletPopover']>) => void;
   setAlignPopover: (state: Partial<UIState['alignPopover']>) => void;
+  setAutoFillPopover: (state: Partial<UIState['autoFillPopover']>) => void;
   togglePopover: (popoverId: keyof UIState['popovers']) => void;
   setSelectionArea: (area: Partial<UIState['selectionArea']>) => void;
   startSelection: (x: number, y: number) => void;
@@ -103,6 +111,12 @@ export const useUIStore = create<UIState>()(
           visible: false,
           x: 300,
           y: 200,
+          collapsed: false,
+        },
+        autoFillPopover: {
+          visible: false,
+          x: 350,
+          y: 250,
           collapsed: false,
         },
         selectionArea: {
@@ -520,6 +534,116 @@ export const useUIStore = create<UIState>()(
             'setAlignPopover'
           ),
 
+        setAutoFillPopover: (state) =>
+          set(
+            (prev) => {
+              const nextState = { ...prev.autoFillPopover, ...state };
+              
+              // Apply smart positioning when opening the popover (visible changing to true)
+              if (state.visible === true && !prev.autoFillPopover.visible) {
+                // Collect all visible popovers to avoid overlaps
+                const allVisiblePopovers: Array<{ x: number; y: number; height: number }> = [];
+                
+                // Check other popovers
+                if (prev.palletEditPopover.visible) {
+                  const height = prev.palletEditPopover.collapsed ? COLLAPSED_POPOVER_HEIGHT : 400;
+                  allVisiblePopovers.push({ x: prev.palletEditPopover.x, y: prev.palletEditPopover.y, height });
+                }
+                
+                if (prev.addPalletPopover.visible) {
+                  allVisiblePopovers.push({ x: prev.addPalletPopover.x, y: prev.addPalletPopover.y, height: 350 });
+                }
+                
+                if (prev.alignPopover.visible) {
+                  const height = prev.alignPopover.collapsed ? COLLAPSED_POPOVER_HEIGHT : 450;
+                  allVisiblePopovers.push({ x: prev.alignPopover.x, y: prev.alignPopover.y, height });
+                }
+                
+                // Check stackable popovers
+                Object.entries(prev.popovers).forEach(([key, popover]) => {
+                  if (popover.visible) {
+                    allVisiblePopovers.push({ x: popover.x, y: popover.y, height: popover.collapsed ? COLLAPSED_POPOVER_HEIGHT : 400 });
+                  }
+                });
+                
+                const AUTO_FILL_POPOVER_HEIGHT = nextState.collapsed ? COLLAPSED_POPOVER_HEIGHT : 500; // Auto fill popover is tall
+                const POPOVER_SPACING = 20;
+                const currentX = prev.autoFillPopover.x;
+                const currentY = prev.autoFillPopover.y;
+                
+                // Check for overlaps and apply smart positioning
+                let hasOverlap = false;
+                for (const visiblePopover of allVisiblePopovers) {
+                  const overlapX = currentX < visiblePopover.x + POPOVER_WIDTH + POPOVER_SPACING && 
+                                  currentX + POPOVER_WIDTH + POPOVER_SPACING > visiblePopover.x;
+                  const overlapY = currentY < visiblePopover.y + visiblePopover.height + POPOVER_SPACING && 
+                                  currentY + AUTO_FILL_POPOVER_HEIGHT + POPOVER_SPACING > visiblePopover.y;
+                  
+                  if (overlapX && overlapY) {
+                    hasOverlap = true;
+                    break;
+                  }
+                }
+                
+                if (hasOverlap) {
+                  // Find the rightmost popover
+                  const rightmostX = allVisiblePopovers.reduce((max, p) => Math.max(max, p.x + POPOVER_WIDTH), 0);
+                  
+                  // Try to place to the right
+                  let newX = rightmostX + POPOVER_SPACING;
+                  let newY = currentY;
+                  
+                  // Check if it fits on screen
+                  const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
+                  if (newX + POPOVER_WIDTH > screenWidth - PADDING) {
+                    // No room on right, place below all popovers
+                    const bottommostY = allVisiblePopovers.reduce((max, p) => Math.max(max, p.y + p.height), 0);
+                    newX = POPOVER_STACK_X;
+                    newY = bottommostY + POPOVER_SPACING;
+                  }
+                  
+                  // Validate final position is within screen boundaries
+                  const minX = POPOVER_STACK_X;
+                  const maxX = typeof window !== 'undefined' ? window.innerWidth - POPOVER_WIDTH - PADDING : Infinity;
+                  const minY = PADDING;
+                  const maxY = typeof window !== 'undefined' ? window.innerHeight - AUTO_FILL_POPOVER_HEIGHT - PADDING : Infinity;
+                  
+                  newX = Math.max(minX, Math.min(newX, maxX));
+                  newY = Math.max(minY, Math.min(newY, maxY));
+                  
+                  nextState.x = newX;
+                  nextState.y = newY;
+                } else {
+                  // Position is valid, doesn't overlap, and has been moved - keep it but clamp to boundaries
+                  const minX = POPOVER_STACK_X;
+                  const maxX = typeof window !== 'undefined' ? window.innerWidth - POPOVER_WIDTH - PADDING : Infinity;
+                  const minY = PADDING;
+                  const maxY = typeof window !== 'undefined' ? window.innerHeight - AUTO_FILL_POPOVER_HEIGHT - PADDING : Infinity;
+                  
+                  nextState.x = Math.max(minX, Math.min(prev.autoFillPopover.x, maxX));
+                  nextState.y = Math.max(minY, Math.min(prev.autoFillPopover.y, maxY));
+                }
+              } else if (state.x !== undefined || state.y !== undefined) {
+                // When position is being updated, validate boundaries
+                const minX = POPOVER_STACK_X;
+                const maxX = typeof window !== 'undefined' ? window.innerWidth - POPOVER_WIDTH - PADDING : Infinity;
+                const minY = PADDING;
+                const maxY = typeof window !== 'undefined' ? window.innerHeight - 100 - PADDING : Infinity;
+                
+                if (nextState.x !== undefined) {
+                  nextState.x = Math.max(minX, Math.min(nextState.x, maxX));
+                }
+                if (nextState.y !== undefined) {
+                  nextState.y = Math.max(minY, Math.min(nextState.y, maxY));
+                }
+              }
+              
+              return { autoFillPopover: nextState };
+            },
+            false,
+            'setAutoFillPopover'
+          ),
+
         togglePopover: (popoverId) =>
           set(
             (state) => ({
@@ -590,6 +714,7 @@ export const useUIStore = create<UIState>()(
           popovers: state.popovers,
           palletEditPopover: state.palletEditPopover,
           addPalletPopover: state.addPalletPopover,
+          autoFillPopover: state.autoFillPopover,
         }),
       }
     ),

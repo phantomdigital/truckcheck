@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Truck, Plus, Eye, EyeOff, Save, FolderOpen, Settings, Scale, Gauge, Package, Undo2, Redo2, Copy } from 'lucide-react';
+import { Truck, Plus, Eye, EyeOff, Save, FolderOpen, Settings, Scale, Gauge, Package, Undo2, Redo2, Copy, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -10,20 +10,20 @@ export type Tool = 'select' | 'pan' | 'zoom-in' | 'zoom-out';
 
 interface DashboardMenuProps {
   onOpenTrucks: () => void;
-  onOpenWeighBridge: () => void;
   onOpenBodyConfig: () => void;
   onOpenCompliance: () => void;
   onAddPallet: () => void;
+  onAutoFillBody: () => void;
   onTogglePopovers: () => void;
   onSave: () => void;
   onLoad: () => void;
   onSettings: () => void;
   palletCount?: number;
   popoverStates?: {
-    weighBridge: boolean;
     bodyConfig: boolean;
     compliance: boolean;
     addPallet: boolean;
+    autoFillBody: boolean;
   };
   onUndo?: () => void;
   onRedo?: () => void;
@@ -45,16 +45,16 @@ interface DashboardItem {
 
 export function DashboardMenu({
   onOpenTrucks,
-  onOpenWeighBridge,
   onOpenBodyConfig,
   onOpenCompliance,
   onAddPallet,
+  onAutoFillBody,
   onTogglePopovers,
   onSave,
   onLoad,
   onSettings,
   palletCount = 0,
-  popoverStates = { weighBridge: false, bodyConfig: false, compliance: true, addPallet: false },
+  popoverStates = { bodyConfig: false, compliance: true, addPallet: false, autoFillBody: false },
   onUndo,
   onRedo,
   onDuplicatePallet,
@@ -71,11 +71,11 @@ export function DashboardMenu({
 
   const items: DashboardItem[] = [
     {
-      id: 'weigh-bridge',
-      label: 'Weigh Bridge',
-      icon: Gauge,
-      onClick: onOpenWeighBridge,
-      isActive: popoverStates.weighBridge,
+      id: 'auto-fill-body',
+      label: 'Auto Fill',
+      icon: Zap,
+      onClick: onAutoFillBody,
+      isActive: popoverStates.autoFillBody,
     },
     {
       id: 'add-pallet',
